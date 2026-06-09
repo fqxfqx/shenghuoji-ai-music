@@ -127,20 +127,99 @@ function musicProvider() {
   return 'demo';
 }
 
-function findAudioUrls(value, urls = new Set()) {
+function findAudioUrls(value, urls = new Set(), keyHint = '') {
   if (!value) return [...urls];
   if (typeof value === 'string') {
-    if (/^https?:\/\/.*\.(mp3|wav|m4a|aac)(\?.*)?$/i.test(value)) urls.add(value);
+    const looksLikeAudioUrl = /^https?:\/\/.*\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
+    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|url|cdn)/i.test(keyHint);
+    if (looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value))) urls.add(value);
     return [...urls];
   }
   if (Array.isArray(value)) {
-    for (const item of value) findAudioUrls(item, urls);
+    for (const item of value) findAudioUrls(item, urls, keyHint);
     return [...urls];
   }
   if (typeof value === 'object') {
-    for (const item of Object.values(value)) findAudioUrls(item, urls);
+    for (const [key, item] of Object.entries(value)) findAudioUrls(item, urls, key);
   }
   return [...urls];
+}
+
+function pickProviderTaskId(raw, fallback) {
+  return raw?.id
+    || raw?.task_id
+    || raw?.taskId
+    || raw?.data?.id
+    || raw?.data?.task_id
+    || raw?.data?.taskId
+    || raw?.result?.id
+    || raw?.result?.task_id
+    || raw?.result?.taskId
+    || fallback;
+}
+
+function pickStatus(raw, fallback = 'processing') {
+  return raw?.status
+    || raw?.data?.status
+    || raw?.result?.status
+    || raw?.task?.status
+    || fallback;
+}
+
+function normalizeLyrics(payload) {
+  const prompt = String(payload.prompt || '写一首给普通人的中文歌曲').trim();
+  const provided = String(payload.lyrics || '').trim();
+  if (provided.length >= 24 && /\n/.test(provided)) return provided;
+  const baseLine = provided || prompt;
+  return [
+    '[Verse]',
+    baseLine,
+    '把心里的话慢慢唱出来',
+    '每一句都像身边人的告白',
+    '',
+    '[Pre-Chorus]',
+    '平凡日子也有自己的光',
+    '走过的路都变成旋律回响',
+    '',
+    '[Chorus]',
+    '我要把这首歌唱给你听',
+    '用最真实的声音靠近你的心',
+    '不管世界多吵多远多不停',
+    '这一刻我们一起相信'
+  ].join('\n');
+}
+
+function buildMurekaPrompt(payload) {
+  const style = String(payload.style || '中文流行').trim();
+  const mood = String(payload.mood || '真诚温暖').trim();
+  const usecase = String(payload.usecase || '生活写歌').trim();
+  const voiceType = String(payload.voiceType || '自然中文人声').trim();
+  const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
+  return [
+    `生成一首完整的中文真人演唱歌曲，风格：${style}，情绪：${mood}，用途：${usecase}。`,
+    `演唱声音：${voiceType}，必须有人声主唱，歌词要被唱出来。`,
+    '不要生成纯音乐，不要背景音乐，不要 soundtrack，不要 instrumental。',
+    '请严格围绕用户需求和歌词创作，旋律完整，有主歌、副歌和清晰的人声。',
+    `User direction: ${userPrompt}`,
+    `Full vocal song with sung Chinese vocals, not instrumental, not BGM, follow the lyrics closely. Voice: ${voiceType}.`
+  ].join(' ');
+}
+
+function saveGeneratedSong(task) {
+  if (!task.audioUrls?.length || task.saved) return;
+  const songs = readJson(SONGS_FILE);
+  songs.push({
+    id: crypto.randomUUID(),
+    userId: task.userId,
+    taskId: task.id,
+    title: task.title,
+    provider: task.provider,
+    audioUrls: task.audioUrls,
+    payload: task.payload,
+    createdAt: new Date().toISOString()
+  });
+  writeJson(SONGS_FILE, songs);
+  task.saved = true;
 }
 
 async function callOpenRouter(payload) {
@@ -202,6 +281,7 @@ async function callMiniMax(payload) {
 async function callMureka(payload) {
   if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
   const model = process.env.MUREKA_MODEL || 'auto';
+  const lyrics = normalizeLyrics(payload);
   const response = await fetch('https://api.mureka.ai/v1/song/generate', {
     method: 'POST',
     headers: {
@@ -210,12 +290,26 @@ async function callMureka(payload) {
     },
     body: JSON.stringify({
       model,
-      lyrics: payload.lyrics || `[Verse]\n${payload.prompt}\n\n[Chorus]\nLet the melody carry the story tonight`,
-      prompt: `${payload.style}, ${payload.mood}, ${payload.usecase}, ${payload.voiceType} vocal, high quality. User direction: ${payload.prompt}`
+      lyrics,
+      prompt: buildMurekaPrompt(payload)
     })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka request failed');
+  return data;
+}
+
+async function queryMurekaTask(providerTaskId) {
+  if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
+  const response = await fetch(`https://api.mureka.ai/v1/song/query/${encodeURIComponent(providerTaskId)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka query failed');
   return data;
 }
 
@@ -309,28 +403,16 @@ async function handleApi(req, res, url) {
       id,
       userId: user.id,
       provider,
-      providerTaskId: raw.id || raw.task_id || id,
-      status: raw.status || 'completed',
+      providerTaskId: pickProviderTaskId(raw, id),
+      status: audioUrls.length ? 'completed' : pickStatus(raw, 'processing'),
       title: String(body.prompt || 'AI Song').slice(0, 28),
       payload: body,
       audioUrls,
-      raw
+      raw,
+      saved: false
     };
     tasks.set(id, task);
-    if (audioUrls.length) {
-      const songs = readJson(SONGS_FILE);
-      songs.push({
-        id: crypto.randomUUID(),
-        userId: user.id,
-        taskId: id,
-        title: task.title,
-        provider,
-        audioUrls,
-        payload: body,
-        createdAt: new Date().toISOString()
-      });
-      writeJson(SONGS_FILE, songs);
-    }
+    saveGeneratedSong(task);
     return sendJson(res, 200, task);
   }
 
@@ -340,6 +422,14 @@ async function handleApi(req, res, url) {
     const task = tasks.get(id);
     if (!task) return sendJson(res, 404, { error: 'Task not found' });
     if (task.userId !== user.id) return sendJson(res, 403, { error: 'Forbidden' });
+    if (task.provider === 'mureka' && task.providerTaskId && (!task.audioUrls.length || !/complete|success|done|finished/i.test(String(task.status)))) {
+      const providerRaw = await queryMurekaTask(task.providerTaskId);
+      task.raw = providerRaw;
+      task.status = pickStatus(providerRaw, task.status);
+      task.audioUrls = findAudioUrls(providerRaw);
+      saveGeneratedSong(task);
+      tasks.set(id, task);
+    }
     return sendJson(res, 200, {
       id,
       provider: task.provider,
