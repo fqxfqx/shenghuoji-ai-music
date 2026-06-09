@@ -1433,42 +1433,120 @@
     }
 
     @media (max-width: 720px) {
-      main { padding: 14px; }
-      .topbar, .sidebar { align-items: stretch; }
-      .topbar { flex-direction: column; }
-      .actions { width: 100%; }
-      .btn { flex: 1; }
-      .stage { grid-template-columns: 1fr; }
-      .cover { aspect-ratio: 1 / 1; }
-      .split, .business { grid-template-columns: 1fr; }
-      .template-grid,
-      .feature-grid { grid-template-columns: 1fr; }
-      .topbar { min-height: 360px; padding: 28px 22px 22px; }
-      .topbar h1 { font-size: 38px; line-height: 1; }
-      .topbar::after { width: 84vw; right: 12px; height: 110px; }
+      body { overflow-x: hidden; }
+      .app { gap: 0; }
+      main { padding: 12px 12px 84px; }
+      .sidebar {
+        gap: 12px;
+        padding: 12px;
+        border-radius: 0 0 22px 22px;
+      }
+      .brand {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+      }
+      .profile-trigger {
+        order: 2;
+        grid-template-columns: 36px minmax(0, 1fr);
+        border-radius: 16px;
+      }
+      .auth-box,
+      .quota {
+        order: 4;
+        width: 100%;
+      }
+      .quota p { display: none; }
+      .nav {
+        order: 3;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px;
+      }
+      .nav button {
+        min-height: 42px;
+        justify-content: center;
+        padding: 10px 8px;
+        white-space: nowrap;
+      }
+      .topbar,
+      .sidebar { align-items: stretch; }
+      .topbar {
+        flex-direction: column;
+        min-height: auto;
+        padding: 18px;
+        border-radius: 20px;
+      }
+      .topbar h1 {
+        font-size: 34px;
+        line-height: 1.04;
+      }
+      .topbar .subhead,
+      .page-title p {
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .page-title h1 { font-size: 32px; }
+      .actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      .btn { width: 100%; justify-content: center; }
+      .panel { border-radius: 20px; }
+      .panel-body { padding: 14px; }
       .panel-head {
         align-items: flex-start;
         flex-direction: column;
+        gap: 8px;
       }
-      .topbar {
-        min-height: auto;
-        padding: 16px 0 4px;
-      }
-      .topbar h1 {
-        font-size: 48px;
-      }
+      .stage { grid-template-columns: 1fr; }
+      .cover { aspect-ratio: 1 / 1; }
+      .split,
+      .business,
+      .life-grid,
+      .cover-layout,
+      .mv-layout,
+      .community-layout,
+      .api-grid { grid-template-columns: 1fr; }
+      .template-grid,
+      .feature-grid { grid-template-columns: 1fr; }
+      .topbar::before,
+      .topbar::after { display: none; }
       .template {
-        min-height: 190px;
+        min-height: 132px;
+        padding: 16px;
       }
       .stage {
         grid-template-columns: 1fr;
         min-height: auto;
       }
+      .upload-zone {
+        min-height: 136px;
+        padding: 16px;
+      }
+      .cover-result,
+      .mv-result-card .cover-result {
+        min-height: 220px;
+      }
+      .mv-preview { border-radius: 16px; }
+      .shot {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .recharge-grid { grid-template-columns: 1fr; }
+      .profile-popover {
+        left: 12px;
+        right: 12px;
+        top: 92px;
+        width: auto;
+        max-height: calc(100vh - 120px);
+        overflow: auto;
+      }
       .transport { grid-template-columns: auto 1fr; }
       .transport time { grid-column: 1 / -1; justify-self: end; }
       .item { grid-template-columns: 44px minmax(0, 1fr); }
       .item-actions { grid-column: 1 / -1; justify-content: flex-end; }
-      .nav { grid-template-columns: 1fr 1fr; width: 100%; }
     }
   </style>
 </head>
