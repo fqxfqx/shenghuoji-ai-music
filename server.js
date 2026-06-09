@@ -194,10 +194,12 @@ function buildMurekaPrompt(payload) {
   const mood = String(payload.mood || '真诚温暖').trim();
   const usecase = String(payload.usecase || '生活写歌').trim();
   const voiceType = String(payload.voiceType || '自然中文人声').trim();
+  const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
   return [
     `生成一首完整的中文真人演唱歌曲，风格：${style}，情绪：${mood}，用途：${usecase}。`,
     `演唱声音：${voiceType}，必须有人声主唱，歌词要被唱出来。`,
+    `风格影响程度：${styleInfluence}%，请在保持歌词表达清楚的前提下体现该风格。`,
     '不要生成纯音乐，不要背景音乐，不要 soundtrack，不要 instrumental。',
     '请严格围绕用户需求和歌词创作，旋律完整，有主歌、副歌和清晰的人声。',
     `User direction: ${userPrompt}`,

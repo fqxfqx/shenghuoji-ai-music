@@ -254,6 +254,119 @@
 
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+    .create-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .cover-create-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .compose-main,
+    .compose-side,
+    .reference-card,
+    .advanced-card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.055);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .compose-main textarea {
+      min-height: 176px;
+      border-radius: 18px;
+    }
+
+    .lyrics-large textarea {
+      min-height: 260px;
+      font-size: 15px;
+    }
+
+    .compose-side {
+      position: sticky;
+      top: 16px;
+    }
+
+    .section-kicker {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: rgba(244, 244, 245, 0.72);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .voice-segment,
+    .option-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .voice-segment {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .voice-chip,
+    .option-card {
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(244, 244, 245, 0.78);
+      padding: 10px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .voice-chip {
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .voice-chip.active,
+    .option-card.active {
+      border-color: rgba(45, 212, 191, 0.75);
+      background: rgba(20, 184, 166, 0.18);
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.1);
+    }
+
+    .option-card b,
+    .option-card span {
+      display: block;
+    }
+
+    .option-card b {
+      color: inherit;
+      margin-bottom: 4px;
+    }
+
+    .option-card span {
+      color: rgba(244, 244, 245, 0.58);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .compact-upload {
+      min-height: 112px;
+      margin-bottom: 0;
+      border-radius: 16px;
+    }
+
+    .more-options {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
     .chip {
@@ -1041,6 +1154,10 @@
       border-radius: 18px;
     }
 
+    .cover-workbench .lyrics-large textarea {
+      min-height: 240px;
+    }
+
     .smart-card h3,
     .cover-result-card h3,
     .mv-result-card h3,
@@ -1416,9 +1533,12 @@
       .quota { margin-top: 0; margin-left: auto; width: min(300px, 100%); }
       .nav { grid-template-columns: repeat(4, auto); }
       .grid { grid-template-columns: 1fr; }
+      .create-workbench { grid-template-columns: 1fr; }
+      .compose-side { position: static; }
       .template-grid,
       .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .life-grid,
+      .cover-layout,
       .community-layout { grid-template-columns: 1fr; }
       .api-grid { grid-template-columns: 1fr; }
       #create > .panel:first-child { position: static; }
@@ -1503,6 +1623,7 @@
       .stage { grid-template-columns: 1fr; }
       .cover { aspect-ratio: 1 / 1; }
       .split,
+      .create-workbench,
       .business,
       .life-grid,
       .cover-layout,
@@ -1635,18 +1756,34 @@
       <section class="grid" id="create">
         <div class="panel">
           <div class="panel-head">
-            <h2>歌曲提示词</h2>
+            <h2>AI 音乐创作</h2>
             <span class="status"><i class="dot"></i><span id="engineState">本地演示引擎就绪</span></span>
           </div>
-          <div class="panel-body">
-            <div class="field">
-              <label for="prompt">音乐需求</label>
-              <textarea id="prompt" placeholder="例如：为一个夏季咖啡品牌广告生成 45 秒中文流行歌曲，轻快、清爽、有记忆点。"></textarea>
+          <div class="panel-body create-workbench">
+            <div class="compose-main">
+              <div class="section-kicker"><span>Lyrics</span><span>先写词，再定风格</span></div>
+              <div class="field lyrics-large">
+                <label for="lyrics">歌词</label>
+                <textarea id="lyrics" placeholder="写下你想唱出来的歌词。建议用主歌、副歌分段，例如：&#10;[主歌]&#10;我把故事轻轻唱给你听&#10;那些没说出口的心情&#10;&#10;[副歌]&#10;我要把这首歌唱给你听&#10;用最真实的声音靠近你的心"></textarea>
+              </div>
+              <div class="field">
+                <label for="prompt">创作提示词</label>
+                <textarea id="prompt" placeholder="一句话说清楚你想要的歌曲：送给谁、什么情绪、什么场景、男声还是女声、希望像什么风格。"></textarea>
+              </div>
+              <div class="reference-card">
+                <div class="section-kicker"><span>Reference</span><span>可选</span></div>
+                <div class="upload-zone compact-upload">
+                  <button class="btn" type="button" data-jump="cover-song">上传参考音频</button>
+                  <strong>想参考一首歌的氛围，就去“翻唱创作”上传音频</strong>
+                  <small>参考音频只用于提取氛围和结构，正式生成仍会创作全新歌曲。</small>
+                </div>
+              </div>
             </div>
 
-            <div class="split">
+            <div class="compose-side">
+              <div class="section-kicker"><span>Style</span><span>生成设置</span></div>
               <div class="field">
-                <label for="style">风格</label>
+                <label for="style">音乐风格</label>
                 <select id="style">
                   <option>中文流行</option>
                   <option>流行抒情</option>
@@ -1669,6 +1806,7 @@
               <div class="field">
                 <label for="usecase">用途</label>
                 <select id="usecase">
+                  <option>生活写歌</option>
                   <option>短视频 BGM</option>
                   <option>品牌广告</option>
                   <option>播客片头</option>
@@ -1676,65 +1814,74 @@
                   <option>电商直播</option>
                 </select>
               </div>
-            </div>
-
-            <div class="field">
-              <label>情绪</label>
-              <div class="chips" id="moods">
-                <button class="chip active">明亮</button>
-                <button class="chip">高级</button>
-                <button class="chip">热血</button>
-                <button class="chip">松弛</button>
-                <button class="chip">神秘</button>
-                <button class="chip">温暖</button>
-              </div>
-            </div>
-
-            <div class="toggle-row">
-              <div>
-                <label>真人演唱模式</label>
-                <div class="subhead">演示版会模拟主唱音色，正式版可接入真实歌声生成模型。</div>
-              </div>
-              <div class="switch on" id="vocalSwitch" role="switch" aria-checked="true" tabindex="0"><i></i></div>
-            </div>
-
-            <div class="split">
               <div class="field">
-                <label for="voiceType">演唱角色</label>
-                <select id="voiceType">
-                  <option>清亮女声</option>
-                  <option>温柔女声</option>
-                  <option>磁性男声</option>
-                  <option>少年男声</option>
-                  <option>男女对唱</option>
-                  <option>多人合唱</option>
-                  <option>儿童声线</option>
-                  <option>低沉男声</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="voiceIntensity">人声音色 <span id="voiceIntensityLabel">70%</span></label>
-                <div class="range-row">
-                  <input id="voiceIntensity" type="range" min="0" max="100" value="70">
-                  <span id="voiceIntensityValue">70%</span>
+                <label>情绪</label>
+                <div class="chips" id="moods">
+                  <button class="chip active">明亮</button>
+                  <button class="chip">高级</button>
+                  <button class="chip">热血</button>
+                  <button class="chip">松弛</button>
+                  <button class="chip">神秘</button>
+                  <button class="chip">温暖</button>
+                  <button class="chip">伤感</button>
+                  <button class="chip">甜蜜</button>
                 </div>
               </div>
-            </div>
 
-            <div class="field">
-              <label for="duration">时长 <span id="durationLabel">36s</span></label>
-              <div class="range-row">
-                <input id="duration" type="range" min="16" max="72" value="36">
-                <span id="durationValue">36 秒</span>
+              <div class="advanced-card">
+                <div class="section-kicker"><span>Voice</span><span>人声</span></div>
+                <div class="voice-segment" id="voiceQuick">
+                  <button class="voice-chip active" type="button" data-voice="清亮女声">女生</button>
+                  <button class="voice-chip" type="button" data-voice="磁性男声">男生</button>
+                  <button class="voice-chip" type="button" data-voice="男女对唱">对唱</button>
+                </div>
+                <div class="field">
+                  <label for="voiceType">声音细分</label>
+                  <select id="voiceType">
+                    <option>清亮女声</option>
+                    <option>温柔女声</option>
+                    <option>磁性男声</option>
+                    <option>少年男声</option>
+                    <option>男女对唱</option>
+                    <option>多人合唱</option>
+                    <option>儿童声线</option>
+                    <option>低沉男声</option>
+                  </select>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <label>真人演唱模式</label>
+                    <div class="subhead">打开后优先生成有人声主唱的完整歌曲。</div>
+                  </div>
+                  <div class="switch on" id="vocalSwitch" role="switch" aria-checked="true" tabindex="0"><i></i></div>
+                </div>
+                <div class="more-options">
+                  <div class="field">
+                    <label for="styleInfluence">风格影响程度 <span id="styleInfluenceLabel">70%</span></label>
+                    <div class="range-row">
+                      <input id="styleInfluence" type="range" min="10" max="100" value="70">
+                      <span id="styleInfluenceValue">70%</span>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="voiceIntensity">人声音色 <span id="voiceIntensityLabel">70%</span></label>
+                    <div class="range-row">
+                      <input id="voiceIntensity" type="range" min="0" max="100" value="70">
+                      <span id="voiceIntensityValue">70%</span>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="duration">时长 <span id="durationLabel">36s</span></label>
+                    <div class="range-row">
+                      <input id="duration" type="range" min="16" max="72" value="36">
+                      <span id="durationValue">36 秒</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="field">
-              <label for="lyrics">歌词或口号</label>
-              <textarea id="lyrics" placeholder="可选：输入歌词。留空时系统会根据需求自动生成短句。"></textarea>
+              <button class="btn accent" id="generateBtn" style="width:100%">生成歌曲</button>
             </div>
-
-            <button class="btn accent" id="generateBtn" style="width:100%">生成 2 首歌</button>
           </div>
         </div>
 
@@ -1845,15 +1992,32 @@
           <h2>翻唱创作</h2>
           <span class="subhead">上传你有权使用的音频，提取情绪、结构和风格，生成新的相似歌曲与歌词。</span>
         </div>
-        <div class="panel-body cover-layout">
-          <div class="cover-workbench">
-            <div class="upload-zone" id="coverUploadZone">
+        <div class="panel-body cover-layout cover-create-layout">
+          <div class="cover-workbench create-workbench">
+            <div class="compose-main">
+            <div class="upload-zone compact-upload" id="coverUploadZone">
               <input id="coverAudio" type="file" accept="audio/*" hidden>
               <button class="btn primary" id="coverPickBtn" type="button">上传参考音频</button>
               <strong id="coverFileName">支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟</strong>
               <small>请只上传你本人原创、已获授权或可合法改编的音频。</small>
             </div>
 
+            <div class="field lyrics-large">
+              <label for="coverStory">新歌词主题</label>
+              <textarea id="coverStory" placeholder="写清楚你想把参考音频改成什么内容。例如：保留原音频温暖、朴实的感觉，但歌词改成送给妈妈的生日歌，像孩子认真说心里话。"></textarea>
+            </div>
+
+            <div class="reference-card">
+              <div class="section-kicker"><span>Cover Idea</span><span>只参考氛围，不复刻原曲</span></div>
+              <div class="cover-notice">
+                <b>版权提醒</b>
+                <span>系统只做“参考氛围 + 新创作”，不复制原曲旋律，不模仿真实歌手声线。商业使用前请确认素材授权。</span>
+              </div>
+            </div>
+            </div>
+
+            <div class="compose-side">
+            <div class="section-kicker"><span>Settings</span><span>翻唱参数</span></div>
             <div class="split">
               <div class="field">
                 <label for="coverMode">生成方式</label>
@@ -1877,6 +2041,15 @@
               </div>
             </div>
 
+            <div class="field">
+              <label>声音选择</label>
+              <div class="voice-segment" id="coverVoiceQuick">
+                <button class="voice-chip active" type="button" data-cover-voice="温柔女声">女生</button>
+                <button class="voice-chip" type="button" data-cover-voice="磁性男声">男生</button>
+                <button class="voice-chip" type="button" data-cover-voice="男女对唱">对唱</button>
+              </div>
+            </div>
+
             <div class="split">
               <div class="field">
                 <label for="coverStyle">目标风格</label>
@@ -1892,7 +2065,7 @@
                 </select>
               </div>
               <div class="field">
-                <label for="coverSimilarity">相似度 <span id="coverSimilarityValue">65%</span></label>
+                <label for="coverSimilarity">参考相似度 <span id="coverSimilarityValue">65%</span></label>
                 <div class="range-row">
                   <input id="coverSimilarity" type="range" min="20" max="85" value="65">
                   <span>越高越接近参考氛围</span>
@@ -1901,18 +2074,17 @@
             </div>
 
             <div class="field">
-              <label for="coverStory">新歌词主题</label>
-              <textarea id="coverStory" placeholder="例如：把原音频的温暖感觉保留，但歌词改成送给妈妈的生日歌，口吻朴实、不要太华丽。"></textarea>
-            </div>
-
-            <div class="cover-notice">
-              <b>版权提醒</b>
-              <span>系统只做“参考氛围 + 新创作”，不复制原曲旋律，不模仿真实歌手声线。商业使用前请确认素材授权。</span>
+              <label for="coverStyleInfluence">风格影响程度 <span id="coverStyleInfluenceValue">70%</span></label>
+              <div class="range-row">
+                <input id="coverStyleInfluence" type="range" min="10" max="100" value="70">
+                <span>决定目标风格权重</span>
+              </div>
             </div>
 
             <div class="actions">
               <button class="btn accent" id="coverGenerateBtn" type="button">智能生成翻唱方案</button>
               <button class="btn" id="coverUsePromptBtn" type="button">发送到创作页</button>
+            </div>
             </div>
           </div>
 
@@ -2254,6 +2426,7 @@
     const usecaseEl = $('usecase');
     const voiceTypeEl = $('voiceType');
     const voiceIntensityEl = $('voiceIntensity');
+    const styleInfluenceEl = $('styleInfluence');
     const lyricsEl = $('lyrics');
     const durationEl = $('duration');
     const durationValue = $('durationValue');
@@ -3030,12 +3203,13 @@
       const voice = $('coverVoice') ? $('coverVoice').value : '温柔女声';
       const style = $('coverStyle') ? $('coverStyle').value : '中文流行';
       const similarity = $('coverSimilarity') ? Number($('coverSimilarity').value) : 65;
+      const styleInfluence = $('coverStyleInfluence') ? Number($('coverStyleInfluence').value) : 70;
       const story = $('coverStory') ? $('coverStory').value.trim() : '';
       const fileName = file ? file.name.replace(/\.[^.]+$/, '') : '参考音频';
       const title = story ? story.slice(0, 14).replace(/[，。,.！!？?]/g, '') : fileName.slice(0, 12);
-      const prompt = `参考上传音频《${fileName}》的情绪、段落起伏、速度和整体氛围，创作一首全新的${style}歌曲。生成方式：${mode}。相似度控制在${similarity}%，只保留氛围和结构灵感，不复制原曲旋律，不模仿真实歌手。演唱声音：${voice}。新歌词主题：${story || '普通人的真实生活故事，温暖、好记、适合分享。'}`;
+      const prompt = `参考上传音频《${fileName}》的情绪、段落起伏、速度和整体氛围，创作一首全新的${style}歌曲。生成方式：${mode}。参考相似度控制在${similarity}%，目标风格影响程度${styleInfluence}%。只保留氛围和结构灵感，不复制原曲旋律，不模仿真实歌手。演唱声音：${voice}。新歌词主题：${story || '普通人的真实生活故事，温暖、好记、适合分享。'}`;
       const lyrics = `[主歌]\n把熟悉的旋律感留在远处\n换一段新的故事慢慢说出\n那些走过的路和心里的光\n都在今晚变成新的愿望\n\n[副歌]\n我想把这首歌唱给你听\n不是复制从前的声音\n只借一点温度 一点风景\n唱成属于我们的姓名`;
-      return { title: `《${title || '新的翻唱灵感'}》`, fileName, mode, voice, style, similarity, prompt, lyrics };
+      return { title: `《${title || '新的翻唱灵感'}》`, fileName, mode, voice, style, similarity, styleInfluence, prompt, lyrics };
     }
 
     function renderCoverIdea(idea) {
@@ -3080,6 +3254,12 @@
       lyricsEl.value = idea.lyrics;
       styleEl.value = idea.style;
       voiceTypeEl.value = idea.voice;
+      if (styleInfluenceEl && idea.styleInfluence) {
+        styleInfluenceEl.value = idea.styleInfluence;
+        $('styleInfluenceValue').textContent = idea.styleInfluence + '%';
+        $('styleInfluenceLabel').textContent = idea.styleInfluence + '%';
+      }
+      syncVoiceQuick(voiceTypeEl.value);
       showPage('create');
       showToast('已把翻唱方案发送到创作页。');
     }
@@ -3177,6 +3357,7 @@
         prompt: promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐',
         lyrics: lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光',
         style: styleEl.value,
+        styleInfluence: styleInfluenceEl ? Number(styleInfluenceEl.value) : 70,
         usecase: usecaseEl.value,
         voiceType: voiceTypeEl.value,
         voiceIntensity: Number(voiceIntensityEl.value),
@@ -3373,6 +3554,13 @@
       showPage(btn.dataset.jump);
     }));
 
+    document.querySelectorAll('button[data-jump]').forEach(btn => {
+      if (btn.closest('.nav')) return;
+      btn.addEventListener('click', () => {
+      showPage(btn.dataset.jump);
+      });
+    });
+
     document.querySelectorAll('#moods .chip').forEach(btn => btn.addEventListener('click', () => {
       document.querySelectorAll('#moods .chip').forEach(x => x.classList.remove('active'));
       btn.classList.add('active');
@@ -3395,12 +3583,37 @@
       $('voiceIntensityLabel').textContent = voiceIntensityEl.value + '%';
     });
 
+    if (styleInfluenceEl) {
+      styleInfluenceEl.addEventListener('input', () => {
+        $('styleInfluenceValue').textContent = styleInfluenceEl.value + '%';
+        $('styleInfluenceLabel').textContent = styleInfluenceEl.value + '%';
+      });
+    }
+
+    function syncVoiceQuick(value) {
+      const exact = [...document.querySelectorAll('#voiceQuick .voice-chip')].some(btn => btn.dataset.voice === value);
+      document.querySelectorAll('#voiceQuick .voice-chip').forEach(btn => {
+        const active = exact
+          ? btn.dataset.voice === value
+          : (value.includes('女') && btn.dataset.voice.includes('女')) || (value.includes('男') && btn.dataset.voice.includes('男') && !value.includes('女'));
+        btn.classList.toggle('active', active);
+      });
+    }
+
+    document.querySelectorAll('#voiceQuick .voice-chip').forEach(btn => btn.addEventListener('click', () => {
+      voiceTypeEl.value = btn.dataset.voice;
+      syncVoiceQuick(voiceTypeEl.value);
+    }));
+
+    voiceTypeEl.addEventListener('change', () => syncVoiceQuick(voiceTypeEl.value));
+
     $('demoBtn').addEventListener('click', () => {
       promptEl.value = '为夏季咖啡品牌广告生成 36 秒中文流行歌曲，清爽、明亮、有一句容易记住的副歌，适合小红书和抖音投放。';
       lyricsEl.value = '阳光落在杯沿上\\n一口清爽慢慢发亮\\n今天的心情刚刚好\\n跟着风一起去远方';
       styleEl.value = '中文流行';
       usecaseEl.value = '品牌广告';
       voiceTypeEl.value = '清亮女声';
+      syncVoiceQuick(voiceTypeEl.value);
       voiceIntensityEl.value = 82;
       $('voiceIntensityValue').textContent = '82%';
       $('voiceIntensityLabel').textContent = '82%';
@@ -3456,6 +3669,7 @@
       styleEl.value = preset.style;
       usecaseEl.value = preset.usecase;
       voiceTypeEl.value = preset.voiceType;
+      syncVoiceQuick(voiceTypeEl.value);
       durationEl.value = preset.duration;
       durationValue.textContent = preset.duration + ' 秒';
       durationLabel.textContent = preset.duration + 's';
@@ -3497,6 +3711,19 @@
     });
     if (coverSimilarity) coverSimilarity.addEventListener('input', () => {
       if ($('coverSimilarityValue')) $('coverSimilarityValue').textContent = coverSimilarity.value + '%';
+    });
+    const coverStyleInfluence = $('coverStyleInfluence');
+    if (coverStyleInfluence) coverStyleInfluence.addEventListener('input', () => {
+      if ($('coverStyleInfluenceValue')) $('coverStyleInfluenceValue').textContent = coverStyleInfluence.value + '%';
+    });
+    document.querySelectorAll('#coverVoiceQuick .voice-chip').forEach(btn => btn.addEventListener('click', () => {
+      const coverVoice = $('coverVoice');
+      if (coverVoice) coverVoice.value = btn.dataset.coverVoice;
+      document.querySelectorAll('#coverVoiceQuick .voice-chip').forEach(x => x.classList.toggle('active', x === btn));
+    }));
+    const coverVoice = $('coverVoice');
+    if (coverVoice) coverVoice.addEventListener('change', () => {
+      document.querySelectorAll('#coverVoiceQuick .voice-chip').forEach(btn => btn.classList.toggle('active', btn.dataset.coverVoice === coverVoice.value));
     });
     if (coverGenerateBtn) coverGenerateBtn.addEventListener('click', generateCoverIdea);
     if (coverUsePromptBtn) coverUsePromptBtn.addEventListener('click', sendCoverIdeaToCreate);
