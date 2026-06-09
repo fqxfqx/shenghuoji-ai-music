@@ -229,6 +229,8 @@ async function handleApi(req, res, url) {
       textModelProvider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'local',
       coverReady: !!process.env.COVER_API_KEY,
       coverProvider: process.env.COVER_API_PROVIDER || 'local-plan',
+      videoReady: !!process.env.VIDEO_API_KEY,
+      videoProvider: process.env.VIDEO_API_PROVIDER || 'local-plan',
       message: provider === 'demo' ? 'No music API key configured; using browser demo engine' : `${provider} connected`
     });
   }

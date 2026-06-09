@@ -1010,6 +1010,7 @@
 
     .life-grid,
     .cover-layout,
+    .mv-layout,
     .community-layout {
       display: grid;
       grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
@@ -1021,6 +1022,8 @@
     .smart-card,
     .cover-workbench,
     .cover-result-card,
+    .mv-workbench,
+    .mv-result-card,
     .post-composer,
     .feed-card {
       border: 1px solid rgba(255, 255, 255, 0.09);
@@ -1031,6 +1034,7 @@
 
     .story-box textarea,
     .cover-workbench textarea,
+    .mv-workbench textarea,
     .post-composer textarea {
       min-height: 150px;
       margin-top: 8px;
@@ -1039,6 +1043,7 @@
 
     .smart-card h3,
     .cover-result-card h3,
+    .mv-result-card h3,
     .feed-card h3 {
       margin: 0 0 10px;
       color: #fff;
@@ -1046,6 +1051,7 @@
 
     .smart-card p,
     .cover-result-card p,
+    .mv-result-card p,
     .feed-card p {
       margin: 0;
       color: rgba(244, 244, 245, 0.66);
@@ -1124,6 +1130,57 @@
       color: rgba(244, 244, 245, 0.76);
       font: inherit;
       line-height: 1.6;
+    }
+
+    .mv-preview {
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(14, 165, 233, 0.32), rgba(244, 63, 94, 0.24)),
+        #0a0a0a;
+      position: relative;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+    }
+
+    .mv-preview::before {
+      content: "";
+      position: absolute;
+      inset: 10%;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 14px;
+      background:
+        linear-gradient(90deg, transparent 0 18%, rgba(255, 255, 255, 0.08) 18% 19%, transparent 19% 38%, rgba(255, 255, 255, 0.08) 38% 39%, transparent 39% 58%, rgba(255, 255, 255, 0.08) 58% 59%, transparent 59%);
+    }
+
+    .mv-preview b {
+      position: relative;
+      z-index: 1;
+      color: #fff;
+      font-size: 20px;
+    }
+
+    .shot-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .shot {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 10px;
+    }
+
+    .shot time {
+      color: #93c5fd;
+      font-weight: 900;
+      font-size: 13px;
     }
 
     .feed {
@@ -1438,6 +1495,7 @@
         <button data-jump="community">社区</button>
         <button data-jump="life-song">生活写歌</button>
         <button data-jump="cover-song">翻唱创作</button>
+        <button data-jump="mv-maker">MV制作</button>
         <button data-jump="rights">发现</button>
         <button data-jump="plans">套餐</button>
       </nav>
@@ -1790,6 +1848,92 @@
         </div>
       </section>
 
+      <section class="panel" id="mv-maker">
+        <div class="panel-head">
+          <h2>MV制作</h2>
+          <span class="subhead">根据已生成歌曲或用户上传音频，生成 MV 分镜、字幕脚本和视频风格方案。</span>
+        </div>
+        <div class="panel-body mv-layout">
+          <div class="mv-workbench">
+            <div class="upload-zone">
+              <input id="mvAudio" type="file" accept="audio/*" hidden>
+              <button class="btn primary" id="mvPickBtn" type="button">上传音频做 MV</button>
+              <strong id="mvFileName">也可以先在作品库选择歌曲，后续会自动带入音频</strong>
+              <small>支持用户自己的歌曲、录音、成品音频。正式版会解析节奏点并自动对齐画面。</small>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="mvSongSource">歌曲来源</label>
+                <select id="mvSongSource">
+                  <option>上传音频</option>
+                  <option>使用当前播放歌曲</option>
+                  <option>使用作品库最新歌曲</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mvRatio">视频比例</label>
+                <select id="mvRatio">
+                  <option>9:16 竖屏短视频</option>
+                  <option>16:9 横屏 MV</option>
+                  <option>1:1 社交平台</option>
+                  <option>4:5 信息流</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="mvStyle">画面风格</label>
+                <select id="mvStyle">
+                  <option>真实生活纪实</option>
+                  <option>电影感叙事</option>
+                  <option>国风写意</option>
+                  <option>城市夜景</option>
+                  <option>温暖家庭影像</option>
+                  <option>动漫音乐短片</option>
+                  <option>潮流舞台视觉</option>
+                  <option>歌词可视化</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mvSubtitle">字幕方式</label>
+                <select id="mvSubtitle">
+                  <option>自动歌词字幕</option>
+                  <option>大字卡点字幕</option>
+                  <option>无字幕纯画面</option>
+                  <option>旁白式字幕</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="mvStory">MV画面需求</label>
+              <textarea id="mvStory" placeholder="例如：这首歌是送给妈妈的，画面要有老照片、厨房灯光、县城小店、生日蛋糕，整体温暖真实，不要太浮夸。"></textarea>
+            </div>
+
+            <div class="cover-notice">
+              <b>制作说明</b>
+              <span>当前先生成 MV 分镜方案和视频提示词。接入视频生成 API 后，可进一步输出 15 秒、30 秒、60 秒成片。</span>
+            </div>
+
+            <div class="actions">
+              <button class="btn accent" id="mvGenerateBtn" type="button">生成 MV 方案</button>
+              <button class="btn" id="mvToCommunityBtn" type="button">发布预告到社区</button>
+            </div>
+          </div>
+
+          <div class="mv-result-card">
+            <h3>MV方案</h3>
+            <div class="mv-preview"><b>等待生成</b></div>
+            <div id="mvResult" class="cover-result empty">
+              <b>等待音频或歌曲</b>
+              <p>上传音频或选择歌曲后，这里会生成画面风格、镜头分段、字幕节奏和视频生成提示词。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel" id="community">
         <div class="panel-head">
           <h2>社区广场</h2>
@@ -1916,6 +2060,18 @@
           </div>
           <div class="api-card">
             <div class="api-card-head">
+              <b>MV 视频生成</b>
+              <span class="api-pill" id="videoApiStatus">本地方案</span>
+            </div>
+            <p>根据歌曲或上传音频生成 MV 分镜、字幕脚本、画面风格和视频生成提示词。正式版可接入视频生成模型输出成片。</p>
+            <div class="api-steps">
+              <span>入口：MV制作 → 上传音频做 MV</span>
+              <span>当前：分镜方案 + 视频提示词</span>
+              <span>正式版：配置 VIDEO_API_KEY 后输出视频</span>
+            </div>
+          </div>
+          <div class="api-card">
+            <div class="api-card-head">
               <b>社区与账号</b>
               <span class="api-pill connected">本地可用</span>
             </div>
@@ -1988,6 +2144,7 @@
       library: [],
       lastHelper: null,
       lastCoverIdea: null,
+      lastMvIdea: null,
       posts: [
         {
           author: '春梅',
@@ -2060,6 +2217,9 @@
       const coverView = document.createElement('div');
       coverView.className = 'page-view';
       coverView.dataset.pageView = 'cover-song';
+      const mvView = document.createElement('div');
+      mvView.className = 'page-view';
+      mvView.dataset.pageView = 'mv-maker';
       const discoverView = document.createElement('div');
       discoverView.className = 'page-view';
       discoverView.dataset.pageView = 'rights';
@@ -2079,6 +2239,7 @@
       const createGrid = $('create');
       const life = $('life-song');
       const cover = $('cover-song');
+      const mvMaker = $('mv-maker');
       const community = $('community');
       const library = $('library');
       const rights = $('rights');
@@ -2102,6 +2263,9 @@
       coverView.appendChild(pageTitle('翻唱创作', '上传参考音频，生成相似氛围的新歌曲方案、歌词和创作提示词。'));
       if (cover) coverView.appendChild(cover);
 
+      mvView.appendChild(pageTitle('MV制作', '用歌曲或上传音频生成 MV 分镜、字幕脚本和视频风格方案。'));
+      if (mvMaker) mvView.appendChild(mvMaker);
+
       discoverView.appendChild(pageTitle('发现', '发现写歌玩法、热门故事、版权说明和创作灵感。'));
       if (featurePanel) discoverView.appendChild(featurePanel);
       if (rights) discoverView.appendChild(rights);
@@ -2111,7 +2275,7 @@
       if (plans) plansView.appendChild(plans);
 
       main.innerHTML = '';
-      [createView, libraryView, communityView, lifeView, coverView, discoverView, plansView].forEach(view => main.appendChild(view));
+      [createView, libraryView, communityView, lifeView, coverView, mvView, discoverView, plansView].forEach(view => main.appendChild(view));
     }
 
     function showPage(page) {
@@ -2194,6 +2358,7 @@
       const textStatus = $('textApiStatus');
       const musicStatus = $('musicApiStatus');
       const coverStatus = $('coverApiStatus');
+      const videoStatus = $('videoApiStatus');
       if (textStatus) {
         textStatus.textContent = textLabel;
         textStatus.classList.toggle('connected', textReady);
@@ -2205,6 +2370,10 @@
       if (coverStatus) {
         coverStatus.textContent = state.api.coverReady ? '已连接：' + (state.api.coverProvider || 'cover') : '本地方案';
         coverStatus.classList.toggle('connected', !!state.api.coverReady);
+      }
+      if (videoStatus) {
+        videoStatus.textContent = state.api.videoReady ? '已连接：' + (state.api.videoProvider || 'video') : '本地方案';
+        videoStatus.classList.toggle('connected', !!state.api.videoReady);
       }
       if ($('menuTextApi')) $('menuTextApi').textContent = textLabel;
       if ($('menuMusicApi')) $('menuMusicApi').textContent = musicLabel;
@@ -2837,6 +3006,94 @@
       showToast('已把翻唱方案发送到创作页。');
     }
 
+    function currentMvAudioName() {
+      const file = $('mvAudio') && $('mvAudio').files ? $('mvAudio').files[0] : null;
+      const source = $('mvSongSource') ? $('mvSongSource').value : '上传音频';
+      if (source.includes('当前') && state.current) return state.current.title;
+      if (source.includes('作品库') && state.library[0]) return state.library[0].title;
+      return file ? file.name.replace(/\.[^.]+$/, '') : '';
+    }
+
+    function buildMvIdea() {
+      const audioName = currentMvAudioName() || '未命名歌曲';
+      const source = $('mvSongSource') ? $('mvSongSource').value : '上传音频';
+      const ratio = $('mvRatio') ? $('mvRatio').value : '9:16 竖屏短视频';
+      const style = $('mvStyle') ? $('mvStyle').value : '真实生活纪实';
+      const subtitle = $('mvSubtitle') ? $('mvSubtitle').value : '自动歌词字幕';
+      const story = $('mvStory') ? $('mvStory').value.trim() : '';
+      const prompt = `为歌曲《${audioName}》制作${ratio} MV。画面风格：${style}。字幕方式：${subtitle}。歌曲来源：${source}。画面需求：${story || '根据歌曲情绪生成普通人能共鸣的生活化画面，镜头干净、节奏跟随鼓点和副歌起伏。'} 请输出可用于视频生成模型的镜头描述，避免使用未授权人物肖像和品牌标识。`;
+      const shots = [
+        { time: '0-6s', text: '开场建立情绪：慢镜头进入主场景，光线柔和，字幕出现歌名。' },
+        { time: '6-15s', text: '主歌铺垫故事：人物或物件细节特写，画面跟随节拍轻微推进。' },
+        { time: '15-28s', text: '副歌情绪放大：切换更开阔的场景，加入歌词卡点字幕和轻微镜头运动。' },
+        { time: '28-45s', text: '第二段变化：加入回忆、路上、城市或家庭片段，色彩保持统一。' },
+        { time: '45-60s', text: '结尾收束：主角背影或重要物件定格，字幕落在最有记忆点的一句歌词。' }
+      ];
+      return { audioName, source, ratio, style, subtitle, story, prompt, shots };
+    }
+
+    function renderMvIdea(idea) {
+      const result = $('mvResult');
+      if (!result) return;
+      result.classList.remove('empty');
+      result.innerHTML = `
+        <div class="cover-result-block">
+          <b>《${idea.audioName}》MV</b>
+          <p>${idea.ratio} / ${idea.style} / ${idea.subtitle}</p>
+        </div>
+        <div class="cover-result-block">
+          <b>分镜脚本</b>
+          <div class="shot-list">
+            ${idea.shots.map(shot => `<div class="shot"><time>${shot.time}</time><p>${shot.text}</p></div>`).join('')}
+          </div>
+        </div>
+        <div class="cover-result-block">
+          <b>视频生成提示词</b>
+          <pre>${idea.prompt}</pre>
+        </div>
+      `;
+      const preview = document.querySelector('.mv-preview b');
+      if (preview) preview.textContent = idea.style;
+    }
+
+    function generateMvIdea() {
+      const hasUpload = $('mvAudio') && $('mvAudio').files && $('mvAudio').files[0];
+      const source = $('mvSongSource') ? $('mvSongSource').value : '上传音频';
+      if (!hasUpload && source.includes('上传')) {
+        showToast('请先上传音频，或把歌曲来源改成当前播放/作品库歌曲。');
+        return;
+      }
+      if (source.includes('当前') && !state.current) {
+        showToast('当前没有正在播放的歌曲。');
+        return;
+      }
+      if (source.includes('作品库') && !state.library.length) {
+        showToast('作品库还没有歌曲。');
+        return;
+      }
+      const idea = buildMvIdea();
+      state.lastMvIdea = idea;
+      renderMvIdea(idea);
+      showToast('已生成 MV 制作方案。');
+    }
+
+    function publishMvPreviewToCommunity() {
+      if (!state.lastMvIdea) {
+        showToast('先生成一个 MV 方案。');
+        return;
+      }
+      state.posts.unshift({
+        author: state.user ? state.user.name : '新朋友',
+        topic: 'MV制作',
+        text: `我刚为《${state.lastMvIdea.audioName}》生成了 MV 方案：${state.lastMvIdea.style}，${state.lastMvIdea.ratio}。`,
+        song: 'MV预告',
+        time: '刚刚'
+      });
+      renderCommunity();
+      showPage('community');
+      showToast('MV 预告已发布到社区。');
+    }
+
     function collectConfig() {
       return {
         prompt: promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐',
@@ -3146,6 +3403,10 @@
     const coverGenerateBtn = $('coverGenerateBtn');
     const coverUsePromptBtn = $('coverUsePromptBtn');
     const coverSimilarity = $('coverSimilarity');
+    const mvPickBtn = $('mvPickBtn');
+    const mvAudio = $('mvAudio');
+    const mvGenerateBtn = $('mvGenerateBtn');
+    const mvToCommunityBtn = $('mvToCommunityBtn');
     if (smartPromptBtn) smartPromptBtn.addEventListener('click', smartGeneratePrompt);
     if (publishPostBtn) publishPostBtn.addEventListener('click', publishPost);
     if (storyToPostBtn) storyToPostBtn.addEventListener('click', publishStoryToCommunity);
@@ -3161,6 +3422,14 @@
     });
     if (coverGenerateBtn) coverGenerateBtn.addEventListener('click', generateCoverIdea);
     if (coverUsePromptBtn) coverUsePromptBtn.addEventListener('click', sendCoverIdeaToCreate);
+    if (mvPickBtn && mvAudio) mvPickBtn.addEventListener('click', () => mvAudio.click());
+    if (mvAudio) mvAudio.addEventListener('change', () => {
+      const file = mvAudio.files && mvAudio.files[0];
+      if ($('mvFileName')) $('mvFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '也可以先在作品库选择歌曲，后续会自动带入音频';
+      if (file) showToast('MV 音频已上传，可以生成视频方案。');
+    });
+    if (mvGenerateBtn) mvGenerateBtn.addEventListener('click', generateMvIdea);
+    if (mvToCommunityBtn) mvToCommunityBtn.addEventListener('click', publishMvPreviewToCommunity);
 
     $('generateBtn').addEventListener('click', generate);
     $('generateTop').addEventListener('click', generate);
