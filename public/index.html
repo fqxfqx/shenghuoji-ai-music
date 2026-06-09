@@ -1009,6 +1009,7 @@
     }
 
     .life-grid,
+    .cover-layout,
     .community-layout {
       display: grid;
       grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
@@ -1018,6 +1019,8 @@
 
     .story-box,
     .smart-card,
+    .cover-workbench,
+    .cover-result-card,
     .post-composer,
     .feed-card {
       border: 1px solid rgba(255, 255, 255, 0.09);
@@ -1027,6 +1030,7 @@
     }
 
     .story-box textarea,
+    .cover-workbench textarea,
     .post-composer textarea {
       min-height: 150px;
       margin-top: 8px;
@@ -1034,15 +1038,91 @@
     }
 
     .smart-card h3,
+    .cover-result-card h3,
     .feed-card h3 {
       margin: 0 0 10px;
       color: #fff;
     }
 
     .smart-card p,
+    .cover-result-card p,
     .feed-card p {
       margin: 0;
       color: rgba(244, 244, 245, 0.66);
+      line-height: 1.6;
+    }
+
+    .upload-zone {
+      min-height: 160px;
+      border: 1px dashed rgba(255, 255, 255, 0.24);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 12% 20%, rgba(34, 197, 94, 0.16), transparent 30%),
+        rgba(255, 255, 255, 0.045);
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    .upload-zone strong {
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .upload-zone small,
+    .cover-notice span {
+      color: rgba(244, 244, 245, 0.6);
+      line-height: 1.55;
+    }
+
+    .cover-notice {
+      display: grid;
+      gap: 6px;
+      border: 1px solid rgba(250, 204, 21, 0.25);
+      border-radius: 16px;
+      background: rgba(250, 204, 21, 0.08);
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .cover-notice b {
+      color: #fde68a;
+    }
+
+    .cover-result {
+      display: grid;
+      gap: 14px;
+      min-height: 360px;
+    }
+
+    .cover-result.empty {
+      place-content: center;
+      text-align: center;
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .cover-result-block {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .cover-result-block b {
+      color: #fff;
+    }
+
+    .cover-result-block pre {
+      white-space: pre-wrap;
+      margin: 0;
+      color: rgba(244, 244, 245, 0.76);
+      font: inherit;
       line-height: 1.6;
     }
 
@@ -1357,6 +1437,7 @@
         <button data-jump="library">作品库</button>
         <button data-jump="community">社区</button>
         <button data-jump="life-song">生活写歌</button>
+        <button data-jump="cover-song">翻唱创作</button>
         <button data-jump="rights">发现</button>
         <button data-jump="plans">套餐</button>
       </nav>
@@ -1623,6 +1704,92 @@
         </div>
       </section>
 
+      <section class="panel" id="cover-song">
+        <div class="panel-head">
+          <h2>翻唱创作</h2>
+          <span class="subhead">上传你有权使用的音频，提取情绪、结构和风格，生成新的相似歌曲与歌词。</span>
+        </div>
+        <div class="panel-body cover-layout">
+          <div class="cover-workbench">
+            <div class="upload-zone" id="coverUploadZone">
+              <input id="coverAudio" type="file" accept="audio/*" hidden>
+              <button class="btn primary" id="coverPickBtn" type="button">上传参考音频</button>
+              <strong id="coverFileName">支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟</strong>
+              <small>请只上传你本人原创、已获授权或可合法改编的音频。</small>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="coverMode">生成方式</label>
+                <select id="coverMode">
+                  <option>相似风格新歌</option>
+                  <option>保留情绪重新写词</option>
+                  <option>保留结构重新编曲</option>
+                  <option>只生成同款歌词</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="coverVoice">演唱声音</label>
+                <select id="coverVoice">
+                  <option>温柔女声</option>
+                  <option>清亮女声</option>
+                  <option>磁性男声</option>
+                  <option>少年男声</option>
+                  <option>男女对唱</option>
+                  <option>多人合唱</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="coverStyle">目标风格</label>
+                <select id="coverStyle">
+                  <option>中文流行</option>
+                  <option>流行抒情</option>
+                  <option>国风融合</option>
+                  <option>民谣</option>
+                  <option>节奏布鲁斯</option>
+                  <option>电子舞曲</option>
+                  <option>独立摇滚</option>
+                  <option>儿童歌曲</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="coverSimilarity">相似度 <span id="coverSimilarityValue">65%</span></label>
+                <div class="range-row">
+                  <input id="coverSimilarity" type="range" min="20" max="85" value="65">
+                  <span>越高越接近参考氛围</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="coverStory">新歌词主题</label>
+              <textarea id="coverStory" placeholder="例如：把原音频的温暖感觉保留，但歌词改成送给妈妈的生日歌，口吻朴实、不要太华丽。"></textarea>
+            </div>
+
+            <div class="cover-notice">
+              <b>版权提醒</b>
+              <span>系统只做“参考氛围 + 新创作”，不复制原曲旋律，不模仿真实歌手声线。商业使用前请确认素材授权。</span>
+            </div>
+
+            <div class="actions">
+              <button class="btn accent" id="coverGenerateBtn" type="button">智能生成翻唱方案</button>
+              <button class="btn" id="coverUsePromptBtn" type="button">发送到创作页</button>
+            </div>
+          </div>
+
+          <div class="cover-result-card">
+            <h3>翻唱方案</h3>
+            <div id="coverResult" class="cover-result empty">
+              <b>等待上传音频</b>
+              <p>上传参考音频后，这里会生成歌曲标题、风格分析、创作提示词和歌词草稿。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel" id="community">
         <div class="panel-head">
           <h2>社区广场</h2>
@@ -1737,6 +1904,18 @@
           </div>
           <div class="api-card">
             <div class="api-card-head">
+              <b>翻唱与音频参考</b>
+              <span class="api-pill" id="coverApiStatus">本地方案</span>
+            </div>
+            <p>上传参考音频，生成相似氛围的新歌提示词、歌词草稿和演唱配置。正式翻唱音频生成需要接支持音频输入的模型。</p>
+            <div class="api-steps">
+              <span>入口：翻唱创作 → 上传参考音频</span>
+              <span>当前：本地分析方案 + 发送到创作页</span>
+              <span>正式版：接入支持 audio-to-song / cover 的 API</span>
+            </div>
+          </div>
+          <div class="api-card">
+            <div class="api-card-head">
               <b>社区与账号</b>
               <span class="api-pill connected">本地可用</span>
             </div>
@@ -1808,6 +1987,7 @@
       queue: [],
       library: [],
       lastHelper: null,
+      lastCoverIdea: null,
       posts: [
         {
           author: '春梅',
@@ -1877,6 +2057,9 @@
       const lifeView = document.createElement('div');
       lifeView.className = 'page-view';
       lifeView.dataset.pageView = 'life-song';
+      const coverView = document.createElement('div');
+      coverView.className = 'page-view';
+      coverView.dataset.pageView = 'cover-song';
       const discoverView = document.createElement('div');
       discoverView.className = 'page-view';
       discoverView.dataset.pageView = 'rights';
@@ -1895,6 +2078,7 @@
       const templatePanel = children.find(el => el.classList.contains('panel') && el.querySelector('[data-template]'));
       const createGrid = $('create');
       const life = $('life-song');
+      const cover = $('cover-song');
       const community = $('community');
       const library = $('library');
       const rights = $('rights');
@@ -1915,6 +2099,9 @@
       lifeView.appendChild(pageTitle('生活写歌', '不会写词也没关系，写下真实经历，系统帮你整理成歌曲提示词。'));
       if (life) lifeView.appendChild(life);
 
+      coverView.appendChild(pageTitle('翻唱创作', '上传参考音频，生成相似氛围的新歌曲方案、歌词和创作提示词。'));
+      if (cover) coverView.appendChild(cover);
+
       discoverView.appendChild(pageTitle('发现', '发现写歌玩法、热门故事、版权说明和创作灵感。'));
       if (featurePanel) discoverView.appendChild(featurePanel);
       if (rights) discoverView.appendChild(rights);
@@ -1924,7 +2111,7 @@
       if (plans) plansView.appendChild(plans);
 
       main.innerHTML = '';
-      [createView, libraryView, communityView, lifeView, discoverView, plansView].forEach(view => main.appendChild(view));
+      [createView, libraryView, communityView, lifeView, coverView, discoverView, plansView].forEach(view => main.appendChild(view));
     }
 
     function showPage(page) {
@@ -2006,6 +2193,7 @@
       const musicLabel = musicReady ? '已连接：' + state.api.provider : '本地演示';
       const textStatus = $('textApiStatus');
       const musicStatus = $('musicApiStatus');
+      const coverStatus = $('coverApiStatus');
       if (textStatus) {
         textStatus.textContent = textLabel;
         textStatus.classList.toggle('connected', textReady);
@@ -2013,6 +2201,10 @@
       if (musicStatus) {
         musicStatus.textContent = musicLabel;
         musicStatus.classList.toggle('connected', musicReady);
+      }
+      if (coverStatus) {
+        coverStatus.textContent = state.api.coverReady ? '已连接：' + (state.api.coverProvider || 'cover') : '本地方案';
+        coverStatus.classList.toggle('connected', !!state.api.coverReady);
       }
       if ($('menuTextApi')) $('menuTextApi').textContent = textLabel;
       if ($('menuMusicApi')) $('menuMusicApi').textContent = musicLabel;
@@ -2585,6 +2777,66 @@
       showPage('community');
     }
 
+    function buildCoverIdea() {
+      const file = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
+      const mode = $('coverMode') ? $('coverMode').value : '相似风格新歌';
+      const voice = $('coverVoice') ? $('coverVoice').value : '温柔女声';
+      const style = $('coverStyle') ? $('coverStyle').value : '中文流行';
+      const similarity = $('coverSimilarity') ? Number($('coverSimilarity').value) : 65;
+      const story = $('coverStory') ? $('coverStory').value.trim() : '';
+      const fileName = file ? file.name.replace(/\.[^.]+$/, '') : '参考音频';
+      const title = story ? story.slice(0, 14).replace(/[，。,.！!？?]/g, '') : fileName.slice(0, 12);
+      const prompt = `参考上传音频《${fileName}》的情绪、段落起伏、速度和整体氛围，创作一首全新的${style}歌曲。生成方式：${mode}。相似度控制在${similarity}%，只保留氛围和结构灵感，不复制原曲旋律，不模仿真实歌手。演唱声音：${voice}。新歌词主题：${story || '普通人的真实生活故事，温暖、好记、适合分享。'}`;
+      const lyrics = `[主歌]\n把熟悉的旋律感留在远处\n换一段新的故事慢慢说出\n那些走过的路和心里的光\n都在今晚变成新的愿望\n\n[副歌]\n我想把这首歌唱给你听\n不是复制从前的声音\n只借一点温度 一点风景\n唱成属于我们的姓名`;
+      return { title: `《${title || '新的翻唱灵感'}》`, fileName, mode, voice, style, similarity, prompt, lyrics };
+    }
+
+    function renderCoverIdea(idea) {
+      const result = $('coverResult');
+      if (!result) return;
+      result.classList.remove('empty');
+      result.innerHTML = `
+        <div class="cover-result-block">
+          <b>${idea.title}</b>
+          <p>${idea.style} / ${idea.voice} / 相似度 ${idea.similarity}%</p>
+        </div>
+        <div class="cover-result-block">
+          <b>音频分析</b>
+          <p>已参考《${idea.fileName}》的情绪走向、段落密度和整体氛围。正式接入翻唱 API 后，这里会读取真实节奏、调性、BPM 和人声/伴奏信息。</p>
+        </div>
+        <div class="cover-result-block">
+          <b>创作提示词</b>
+          <pre>${idea.prompt}</pre>
+        </div>
+        <div class="cover-result-block">
+          <b>歌词草稿</b>
+          <pre>${idea.lyrics}</pre>
+        </div>
+      `;
+    }
+
+    function generateCoverIdea() {
+      const file = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
+      if (!file) {
+        showToast('请先上传一段参考音频。');
+        return;
+      }
+      const idea = buildCoverIdea();
+      state.lastCoverIdea = idea;
+      renderCoverIdea(idea);
+      showToast('已生成翻唱创作方案，可发送到创作页继续做歌。');
+    }
+
+    function sendCoverIdeaToCreate() {
+      const idea = state.lastCoverIdea || buildCoverIdea();
+      promptEl.value = idea.prompt;
+      lyricsEl.value = idea.lyrics;
+      styleEl.value = idea.style;
+      voiceTypeEl.value = idea.voice;
+      showPage('create');
+      showToast('已把翻唱方案发送到创作页。');
+    }
+
     function collectConfig() {
       return {
         prompt: promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐',
@@ -2889,10 +3141,26 @@
     const publishPostBtn = $('publishPostBtn');
     const storyToPostBtn = $('storyToPostBtn');
     const shareHelperBtn = $('shareHelperBtn');
+    const coverPickBtn = $('coverPickBtn');
+    const coverAudio = $('coverAudio');
+    const coverGenerateBtn = $('coverGenerateBtn');
+    const coverUsePromptBtn = $('coverUsePromptBtn');
+    const coverSimilarity = $('coverSimilarity');
     if (smartPromptBtn) smartPromptBtn.addEventListener('click', smartGeneratePrompt);
     if (publishPostBtn) publishPostBtn.addEventListener('click', publishPost);
     if (storyToPostBtn) storyToPostBtn.addEventListener('click', publishStoryToCommunity);
     if (shareHelperBtn) shareHelperBtn.addEventListener('click', shareHelperToCommunity);
+    if (coverPickBtn && coverAudio) coverPickBtn.addEventListener('click', () => coverAudio.click());
+    if (coverAudio) coverAudio.addEventListener('change', () => {
+      const file = coverAudio.files && coverAudio.files[0];
+      if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟';
+      if (file) showToast('参考音频已上传，可生成翻唱方案。');
+    });
+    if (coverSimilarity) coverSimilarity.addEventListener('input', () => {
+      if ($('coverSimilarityValue')) $('coverSimilarityValue').textContent = coverSimilarity.value + '%';
+    });
+    if (coverGenerateBtn) coverGenerateBtn.addEventListener('click', generateCoverIdea);
+    if (coverUsePromptBtn) coverUsePromptBtn.addEventListener('click', sendCoverIdeaToCreate);
 
     $('generateBtn').addEventListener('click', generate);
     $('generateTop').addEventListener('click', generate);
