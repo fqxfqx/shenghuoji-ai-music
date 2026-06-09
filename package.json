@@ -1,0 +1,13 @@
+{
+  "name": "shenghuoji-ai-music",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI music creation and community web app",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,56 @@
+﻿[
+    {
+        "id":  "d29873e7-22cd-4ac4-90f0-78eb528ba938",
+        "email":  "test+b5aa4712@example.com",
+        "name":  "Test User",
+        "salt":  "qVAQrz3u8t6z4pweNh5lRw==",
+        "passwordHash":  "th+YFIA1OA2lrCZ+aedJROwfGxZf1QUhr2SqrFBsiGk=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T16:07:30.1295939Z"
+    },
+    {
+        "id":  "039622b9-ed4c-41ee-b8e5-be4618bc7325",
+        "email":  "web+300659f4@example.com",
+        "name":  "Web User",
+        "salt":  "Ejdl6LxOU37nchtfwRuh2g==",
+        "passwordHash":  "8IW8GBvrb+rS5hmQ+62+YiIZuhsEN2mQyTB+sIupoeg=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T16:08:11.2629911Z"
+    },
+    {
+        "id":  "a718d4d7-a188-46c5-a087-85f1bd290a32",
+        "email":  "local+31a76ea3@example.com",
+        "name":  "Local Test",
+        "salt":  "vLvVCP/5JT8vw5tdtvBRTQ==",
+        "passwordHash":  "2o2Zh/rrLI/XnqBRdXObftYVxQKLS5XRiTocTOahbko=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T18:00:35.0688710Z"
+    },
+    {
+        "id":  "64a0a1d5-13cf-4f79-8f64-e37c9356646a",
+        "email":  "2673757392@qq.com",
+        "name":  "创始人",
+        "salt":  "zFXbXcq7KpvSBBRp83uETw==",
+        "passwordHash":  "lLTqjjDtj2FjB7XZGSls5sFdW+VYfG9BeUAiG5l8UBI=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T18:04:40.0597144Z"
+    },
+    {
+        "id":  "ea3552af-1d9b-467f-9a20-cfd8e0e68f7b",
+        "email":  "e2e+7c4997ca@example.com",
+        "name":  "?????",
+        "salt":  "xn6Bw+3OTAbVURiM3mahVw==",
+        "passwordHash":  "hMMmf3dP5+99ZFSDNQFMd0qNoE87cgAibueZ4DFP4e4=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T18:06:44.1945337Z"
+    },
+    {
+        "id":  "4e379146-c996-4ad9-b9d1-2774d7ebdc60",
+        "email":  "music+e5e2b55c@example.com",
+        "name":  "Music Test",
+        "salt":  "gWYS+6vu+dD6IXkIyux+iQ==",
+        "passwordHash":  "KO+RqCJBsPMjBsetU6sshexEp8ql3GEpzthMk9BVDuo=",
+        "credits":  40,
+        "createdAt":  "2026-06-08T18:07:10.9211887Z"
+    }
+]

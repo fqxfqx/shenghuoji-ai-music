@@ -1,0 +1,2916 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auraly AI 音乐创作室</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --panel-2: #ebe7dc;
+      --ink: #171717;
+      --muted: #6d6a63;
+      --line: #d8d1c2;
+      --accent: #0f766e;
+      --accent-2: #f59e0b;
+      --accent-3: #dc2626;
+      --blue: #2563eb;
+      --shadow: 0 18px 50px rgba(38, 34, 28, 0.11);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(15, 118, 110, 0.07) 0 1px, transparent 1px 100%),
+        linear-gradient(0deg, rgba(15, 118, 110, 0.06) 0 1px, transparent 1px 100%),
+        var(--bg);
+      background-size: 44px 44px;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 22px 18px;
+      background: rgba(255, 253, 248, 0.86);
+      border-right: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 4px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: conic-gradient(from 45deg, #0f766e, #2563eb, #f59e0b, #dc2626, #0f766e);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+    }
+
+    .brand strong { display: block; font-size: 16px; }
+    .brand span { color: var(--muted); font-size: 12px; }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      height: 40px;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      background: #e5efe9;
+      color: #0b4f49;
+    }
+
+    .quota {
+      margin-top: auto;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfaf5;
+    }
+
+    .auth-box {
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+      display: grid;
+      gap: 10px;
+    }
+
+    .auth-box strong { font-size: 14px; }
+    .auth-box small { color: rgba(248, 250, 252, 0.68); line-height: 1.45; }
+
+    .auth-box input {
+      height: 38px;
+      border-color: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .auth-box input::placeholder { color: rgba(255, 255, 255, 0.48); }
+
+    .auth-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .auth-box .btn {
+      height: 36px;
+      padding: 0 10px;
+      border-color: rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .auth-box .btn.primary {
+      background: #fff;
+      border-color: #fff;
+      color: #111827;
+    }
+
+    .quota b { font-size: 24px; }
+    .quota p { margin: 6px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .meter { height: 8px; border-radius: 99px; background: #e1dacb; overflow: hidden; }
+    .meter i { display: block; width: 68%; height: 100%; background: var(--accent); }
+
+    main {
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .topbar {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subhead { margin: 6px 0 0; color: var(--muted); }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--ink);
+      height: 40px;
+      padding: 0 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: white;
+    }
+
+    .btn.accent {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn:disabled { opacity: 0.48; cursor: not-allowed; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(330px, 0.95fr) minmax(420px, 1.2fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 253, 248, 0.92);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .panel-head h2, .panel-head h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .panel-body { padding: 16px; }
+
+    .field { display: grid; gap: 8px; margin-bottom: 14px; }
+    label { font-weight: 700; font-size: 13px; }
+
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    textarea { resize: vertical; min-height: 108px; line-height: 1.45; }
+    textarea:focus, input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13); }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .chip {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: #fffefb;
+      border-radius: 999px;
+      padding: 0 12px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .chip.active {
+      border-color: var(--accent);
+      background: #e5efe9;
+      color: #0b4f49;
+      font-weight: 700;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      margin-bottom: 14px;
+    }
+
+    .switch {
+      width: 48px;
+      height: 26px;
+      border-radius: 999px;
+      background: #cfc7b8;
+      padding: 3px;
+      cursor: pointer;
+    }
+
+    .switch i {
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.18s ease;
+    }
+
+    .switch.on { background: var(--accent); }
+    .switch.on i { transform: translateX(22px); }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr 54px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    input[type="range"] { padding: 0; accent-color: var(--accent); }
+
+    .studio {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stage {
+      min-height: 330px;
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .cover {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: #ddd;
+      min-height: 170px;
+    }
+
+    .cover canvas { width: 100%; height: 100%; display: block; }
+
+    .track-meta {
+      display: grid;
+      align-content: space-between;
+      gap: 16px;
+    }
+
+    .track-meta h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .track-meta p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.58);
+      font-size: 12px;
+    }
+
+    .wave-wrap {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    #waveform {
+      width: 100%;
+      height: 104px;
+      display: block;
+      background: linear-gradient(180deg, #fffefb, #f2eee4);
+      border-radius: var(--radius);
+    }
+
+    .transport {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .round {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 0;
+      background: var(--ink);
+      color: white;
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .progress {
+      height: 8px;
+      background: #e1dacb;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress i { display: block; height: 100%; width: 0%; background: var(--accent-2); }
+
+    .queue, .library {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+    }
+
+    .thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #0f766e, #f59e0b);
+    }
+
+    .item b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item span { color: var(--muted); font-size: 12px; }
+    .item-actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: white;
+      cursor: pointer;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.13);
+    }
+
+    .business {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .plan {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: #fffefb;
+    }
+
+    .plan h3 { margin: 0 0 8px; }
+    .price { font-size: 24px; font-weight: 800; margin: 0 0 8px; }
+    .plan p { color: var(--muted); margin: 0; line-height: 1.45; font-size: 13px; }
+
+    .empty {
+      border: 1px dashed #bdb4a5;
+      border-radius: var(--radius);
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 253, 248, 0.6);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: 340px;
+      padding: 12px 14px;
+      background: #171717;
+      color: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 20;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .app {
+      background:
+        radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.18), transparent 26%),
+        radial-gradient(circle at 72% 4%, rgba(37, 99, 235, 0.14), transparent 22%),
+        linear-gradient(135deg, rgba(255, 253, 248, 0.84), rgba(235, 231, 220, 0.72));
+    }
+
+    .sidebar {
+      background:
+        linear-gradient(180deg, rgba(24, 24, 27, 0.96), rgba(32, 42, 45, 0.94)),
+        #171717;
+      color: #f8fafc;
+      border-right: 0;
+      box-shadow: 18px 0 60px rgba(15, 23, 42, 0.18);
+    }
+
+    .brand {
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .brand span,
+    .sidebar .quota p {
+      color: rgba(248, 250, 252, 0.68);
+    }
+
+    .nav button {
+      color: rgba(248, 250, 252, 0.68);
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .quota {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .topbar {
+      position: relative;
+      min-height: 260px;
+      padding: 28px;
+      align-items: stretch;
+      overflow: hidden;
+      color: #fff;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(115deg, rgba(15, 23, 42, 0.92), rgba(15, 118, 110, 0.84) 48%, rgba(245, 158, 11, 0.78)),
+        #111827;
+      box-shadow: 0 26px 80px rgba(15, 23, 42, 0.24);
+    }
+
+    .topbar::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 1px, transparent 1px 100%),
+        linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 100%);
+      background-size: 52px 52px;
+      mask-image: linear-gradient(90deg, rgba(0,0,0,0.9), transparent 78%);
+      pointer-events: none;
+    }
+
+    .topbar::after {
+      content: "";
+      position: absolute;
+      right: 22px;
+      bottom: 22px;
+      width: min(44vw, 520px);
+      height: 150px;
+      background:
+        repeating-linear-gradient(90deg,
+          rgba(255, 255, 255, 0.92) 0 7px,
+          rgba(255, 255, 255, 0.08) 7px 17px);
+      clip-path: polygon(0 60%, 4% 18%, 8% 76%, 12% 35%, 16% 82%, 20% 20%, 24% 66%, 28% 42%, 32% 88%, 36% 26%, 40% 70%, 44% 14%, 48% 64%, 52% 40%, 56% 78%, 60% 24%, 64% 86%, 68% 34%, 72% 72%, 76% 18%, 80% 58%, 84% 38%, 88% 80%, 92% 30%, 96% 68%, 100% 52%, 100% 100%, 0 100%);
+      opacity: 0.28;
+    }
+
+    .topbar > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar h1 {
+      max-width: 760px;
+      font-size: clamp(34px, 5vw, 72px);
+      line-height: 0.94;
+    }
+
+    .topbar .subhead {
+      max-width: 600px;
+      margin-top: 14px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 16px;
+    }
+
+    .topbar .actions {
+      align-self: flex-start;
+      justify-content: flex-end;
+    }
+
+    .topbar .btn {
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar .btn.primary {
+      background: #fff;
+      border-color: #fff;
+      color: #111827;
+    }
+
+    .panel {
+      background: rgba(255, 253, 248, 0.9);
+      backdrop-filter: blur(16px);
+    }
+
+    .panel-head {
+      background: linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255,255,255,0));
+    }
+
+    .grid {
+      grid-template-columns: minmax(360px, 0.9fr) minmax(520px, 1.25fr);
+    }
+
+    .studio > .panel:first-child {
+      background:
+        linear-gradient(145deg, rgba(255,253,248,0.96), rgba(237, 247, 243, 0.9));
+    }
+
+    .cover {
+      box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
+    }
+
+    .round {
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .template {
+      min-height: 168px;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      color: #fff;
+      display: grid;
+      align-content: space-between;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .template::after {
+      content: "";
+      position: absolute;
+      inset: auto 12px 12px 12px;
+      height: 48px;
+      background:
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255,0.9) 0 4px,
+          rgba(255,255,255,0.12) 4px 10px);
+      clip-path: polygon(0 70%, 8% 18%, 16% 78%, 24% 42%, 32% 86%, 40% 30%, 48% 72%, 56% 14%, 64% 64%, 72% 44%, 80% 82%, 88% 26%, 96% 66%, 100% 52%, 100% 100%, 0 100%);
+      opacity: 0.34;
+    }
+
+    .template strong,
+    .template span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .template strong {
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .template span {
+      color: rgba(255,255,255,0.76);
+      font-size: 12px;
+      line-height: 1.45;
+      max-width: 88%;
+    }
+
+    .template:nth-child(1) { background: linear-gradient(135deg, #0f766e, #111827); }
+    .template:nth-child(2) { background: linear-gradient(135deg, #7c2d12, #f59e0b); }
+    .template:nth-child(3) { background: linear-gradient(135deg, #1d4ed8, #7f1d1d); }
+    .template:nth-child(4) { background: linear-gradient(135deg, #365314, #134e4a); }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .feature {
+      min-height: 138px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fffefb;
+      padding: 14px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .feature i {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: inline-grid;
+      place-items: center;
+      background: #e5efe9;
+      color: #0b4f49;
+      font-style: normal;
+      font-weight: 800;
+    }
+
+    .feature b { font-size: 15px; }
+    .feature p { margin: 0; color: var(--muted); line-height: 1.45; font-size: 13px; }
+
+    /* Suno-style product template layer: dark creator canvas, centered composer, music feed cards. */
+    :root {
+      --bg: #09090b;
+      --panel: #151519;
+      --panel-2: #202027;
+      --ink: #f8fafc;
+      --muted: #a1a1aa;
+      --line: rgba(255, 255, 255, 0.1);
+      --accent: #8b5cf6;
+      --accent-2: #22c55e;
+      --accent-3: #f97316;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 18% 0%, rgba(139, 92, 246, 0.28), transparent 30%),
+        radial-gradient(circle at 90% 12%, rgba(34, 197, 94, 0.18), transparent 26%),
+        linear-gradient(180deg, #0b0b10 0%, #09090b 42%, #050506 100%);
+      color: var(--ink);
+    }
+
+    .app {
+      grid-template-columns: 232px minmax(0, 1fr);
+      background: transparent;
+    }
+
+    .sidebar {
+      background: rgba(9, 9, 11, 0.82);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+    }
+
+    .brand {
+      padding-top: 2px;
+    }
+
+    .mark {
+      border-radius: 12px;
+      background:
+        linear-gradient(135deg, #8b5cf6, #ec4899 42%, #22c55e);
+      box-shadow: 0 14px 30px rgba(139, 92, 246, 0.28);
+    }
+
+    .nav button {
+      height: 42px;
+      border-radius: 12px;
+      font-weight: 700;
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    main {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      padding: 28px 28px 110px;
+    }
+
+    .topbar {
+      min-height: auto;
+      padding: 26px 0 10px;
+      color: var(--ink);
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+    }
+
+    .topbar::before,
+    .topbar::after {
+      display: none;
+    }
+
+    .topbar h1 {
+      font-size: clamp(42px, 7vw, 86px);
+      line-height: 0.95;
+      font-weight: 850;
+      letter-spacing: 0;
+      background: linear-gradient(90deg, #fff, #d8b4fe 48%, #86efac);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .topbar .subhead {
+      color: rgba(244, 244, 245, 0.68);
+      font-size: 15px;
+    }
+
+    .topbar .btn,
+    .btn {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--ink);
+      border-radius: 999px;
+    }
+
+    .topbar .btn.primary,
+    .btn.primary,
+    .btn.accent {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(139, 92, 246, 0.24);
+    }
+
+    .panel {
+      background: rgba(21, 21, 25, 0.78);
+      border-color: rgba(255, 255, 255, 0.09);
+      box-shadow: var(--shadow);
+    }
+
+    .studio > .panel:first-child {
+      background:
+        linear-gradient(145deg, rgba(24, 24, 30, 0.94), rgba(13, 13, 18, 0.92));
+    }
+
+    .panel-head {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+      background: transparent;
+    }
+
+    .panel-head h2,
+    .panel-head h3 {
+      color: #fff;
+      font-size: 18px;
+    }
+
+    .subhead,
+    .item span,
+    .plan p,
+    .feature p {
+      color: rgba(244, 244, 245, 0.62);
+    }
+
+    textarea,
+    input,
+    select {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    select option {
+      color: #111827;
+      background: #fff;
+    }
+
+    textarea::placeholder,
+    input::placeholder {
+      color: rgba(244, 244, 245, 0.38);
+    }
+
+    #create > .panel:first-child {
+      position: sticky;
+      top: 18px;
+    }
+
+    #create > .panel:first-child .panel-body {
+      padding: 18px;
+    }
+
+    #prompt {
+      min-height: 148px;
+      border-radius: 24px;
+      padding: 18px;
+      font-size: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: rgba(244, 244, 245, 0.68);
+    }
+
+    .chip.active {
+      background: rgba(139, 92, 246, 0.18);
+      border-color: rgba(196, 181, 253, 0.55);
+      color: #fff;
+    }
+
+    .toggle-row,
+    .wave-wrap,
+    .item,
+    .feature,
+    .plan {
+      background: rgba(255, 255, 255, 0.055);
+      border-color: rgba(255, 255, 255, 0.09);
+    }
+
+    .stage {
+      grid-template-columns: 240px minmax(0, 1fr);
+      min-height: 420px;
+    }
+
+    .cover {
+      border: 0;
+      border-radius: 22px;
+      min-height: 240px;
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.44);
+    }
+
+    .track-meta h2 {
+      font-size: 36px;
+      color: #fff;
+    }
+
+    .badge {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: rgba(244, 244, 245, 0.72);
+    }
+
+    #waveform {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .round {
+      background: #fff;
+      color: #09090b;
+    }
+
+    .progress {
+      background: rgba(255, 255, 255, 0.11);
+    }
+
+    .progress i {
+      background: linear-gradient(90deg, #8b5cf6, #ec4899, #22c55e);
+    }
+
+    .template-grid {
+      grid-template-columns: repeat(4, minmax(190px, 1fr));
+    }
+
+    .template {
+      border: 0;
+      border-radius: 22px;
+      min-height: 220px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    .template:hover {
+      transform: translateY(-3px);
+      filter: brightness(1.08);
+    }
+
+    .template strong {
+      font-size: 22px;
+    }
+
+    .template span {
+      font-size: 13px;
+    }
+
+    .quota,
+    .auth-box {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .toast {
+      border-radius: 18px;
+      background: #f8fafc;
+      color: #09090b;
+    }
+
+    .life-grid,
+    .community-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .story-box,
+    .smart-card,
+    .post-composer,
+    .feed-card {
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.055);
+      padding: 16px;
+    }
+
+    .story-box textarea,
+    .post-composer textarea {
+      min-height: 150px;
+      margin-top: 8px;
+      border-radius: 18px;
+    }
+
+    .smart-card h3,
+    .feed-card h3 {
+      margin: 0 0 10px;
+      color: #fff;
+    }
+
+    .smart-card p,
+    .feed-card p {
+      margin: 0;
+      color: rgba(244, 244, 245, 0.66);
+      line-height: 1.6;
+    }
+
+    .feed {
+      display: grid;
+      gap: 12px;
+    }
+
+    .feed-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .feed-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(244, 244, 245, 0.54);
+      font-size: 12px;
+    }
+
+    .feed-author {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8b5cf6, #22c55e);
+      display: inline-grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .feed-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .helper-result {
+      margin-top: 14px;
+      border: 1px solid rgba(139, 92, 246, 0.32);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(34, 197, 94, 0.08));
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .helper-result[hidden] { display: none; }
+
+    .helper-result b {
+      color: #fff;
+      font-size: 18px;
+    }
+
+    .helper-result p {
+      margin: 0;
+      color: rgba(244, 244, 245, 0.72);
+      line-height: 1.55;
+    }
+
+    .profile-trigger {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.07);
+      color: #fff;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .profile-trigger b,
+    .profile-trigger small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .profile-trigger small {
+      margin-top: 3px;
+      color: rgba(244, 244, 245, 0.58);
+      font-size: 12px;
+    }
+
+    .profile-popover {
+      position: fixed;
+      left: 248px;
+      top: 78px;
+      width: 330px;
+      z-index: 30;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      background: rgba(16, 16, 22, 0.96);
+      color: #fff;
+      box-shadow: 0 26px 90px rgba(0, 0, 0, 0.48);
+      padding: 16px;
+      display: none;
+      backdrop-filter: blur(18px);
+    }
+
+    .profile-popover.open { display: grid; gap: 14px; }
+
+    .profile-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(244, 244, 245, 0.68);
+      font-size: 13px;
+    }
+
+    .recharge-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .recharge-card {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .recharge-card b { font-size: 15px; }
+    .recharge-card small { color: rgba(244, 244, 245, 0.58); }
+
+    .page-view { display: none; }
+    .page-view.active { display: grid; gap: 18px; }
+
+    .page-title {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .page-title h1 {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 0.98;
+    }
+
+    .page-title p {
+      margin: 0;
+      color: rgba(244, 244, 245, 0.66);
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .api-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .api-card {
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.055);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .api-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .api-card b {
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .api-card p {
+      margin: 0;
+      color: rgba(244, 244, 245, 0.68);
+      line-height: 1.55;
+    }
+
+    .api-pill {
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: rgba(249, 115, 22, 0.16);
+      color: #fed7aa;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .api-pill.connected {
+      background: rgba(34, 197, 94, 0.16);
+      color: #bbf7d0;
+    }
+
+    .api-steps {
+      display: grid;
+      gap: 6px;
+      color: rgba(244, 244, 245, 0.56);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 1260px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .brand { border-bottom: 0; padding-bottom: 6px; }
+      .quota { margin-top: 0; margin-left: auto; width: min(300px, 100%); }
+      .nav { grid-template-columns: repeat(4, auto); }
+      .grid { grid-template-columns: 1fr; }
+      .template-grid,
+      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .life-grid,
+      .community-layout { grid-template-columns: 1fr; }
+      .api-grid { grid-template-columns: 1fr; }
+      #create > .panel:first-child { position: static; }
+      main { padding: 22px 18px 96px; }
+      .stage { grid-template-columns: 220px minmax(0, 1fr); }
+    }
+
+    @media (min-width: 1261px) and (max-width: 1440px) {
+      .stage { grid-template-columns: 140px minmax(0, 1fr); }
+      .track-meta h2 { font-size: 22px; }
+      .cover { min-height: 140px; }
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 14px; }
+      .topbar, .sidebar { align-items: stretch; }
+      .topbar { flex-direction: column; }
+      .actions { width: 100%; }
+      .btn { flex: 1; }
+      .stage { grid-template-columns: 1fr; }
+      .cover { aspect-ratio: 1 / 1; }
+      .split, .business { grid-template-columns: 1fr; }
+      .template-grid,
+      .feature-grid { grid-template-columns: 1fr; }
+      .topbar { min-height: 360px; padding: 28px 22px 22px; }
+      .topbar h1 { font-size: 38px; line-height: 1; }
+      .topbar::after { width: 84vw; right: 12px; height: 110px; }
+      .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .topbar {
+        min-height: auto;
+        padding: 16px 0 4px;
+      }
+      .topbar h1 {
+        font-size: 48px;
+      }
+      .template {
+        min-height: 190px;
+      }
+      .stage {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+      .transport { grid-template-columns: auto 1fr; }
+      .transport time { grid-column: 1 / -1; justify-self: end; }
+      .item { grid-template-columns: 44px minmax(0, 1fr); }
+      .item-actions { grid-column: 1 / -1; justify-content: flex-end; }
+      .nav { grid-template-columns: 1fr 1fr; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <strong>Auraly AI</strong>
+          <span>AI 歌曲创作室</span>
+        </div>
+      </div>
+      <button class="profile-trigger" id="profileTrigger">
+        <span class="avatar" id="profileAvatar">访</span>
+        <span>
+          <b id="profileName">游客</b>
+          <small id="profileCredits">注册后送 40 积分</small>
+        </span>
+      </button>
+      <nav class="nav" aria-label="主导航">
+        <button class="active" data-jump="create">创作</button>
+        <button data-jump="library">作品库</button>
+        <button data-jump="community">社区</button>
+        <button data-jump="life-song">生活写歌</button>
+        <button data-jump="rights">发现</button>
+        <button data-jump="plans">套餐</button>
+      </nav>
+      <form class="auth-box" id="authBox">
+        <strong id="authTitle">注册后开始创作</strong>
+        <small id="authHint">注册送 40 积分，作品会保存到你的账号。</small>
+        <input id="authName" placeholder="昵称">
+        <input id="authEmail" type="email" placeholder="邮箱">
+        <input id="authPassword" type="password" placeholder="密码，至少 6 位">
+        <div class="auth-row">
+          <button class="btn primary" id="registerBtn" type="submit" data-auth-action="register">注册</button>
+          <button class="btn" id="loginBtn" type="button" data-auth-action="login">登录</button>
+        </div>
+      </form>
+      <div class="quota">
+        <b id="credits">84</b>
+        <p>本月可用积分。生成一首完整歌曲消耗 8-12 积分，失败任务自动返还。</p>
+        <div class="meter" aria-hidden="true"><i></i></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <h1>创作一首歌</h1>
+          <p class="subhead">描述你想要的音乐，生成带歌词、人声、封面和多个版本的完整歌曲。</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="demoBtn">试试示例</button>
+          <button class="btn primary" id="generateTop">开始创作</button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>为你推荐</h2>
+          <span class="subhead">从模板开始，再自由改写你的创作提示</span>
+        </div>
+        <div class="panel-body template-grid">
+          <button class="template" data-template="brand">
+            <strong>品牌副歌</strong>
+            <span>清亮女声、中文流行、15 秒记忆点，适合短视频投放。</span>
+          </button>
+          <button class="template" data-template="city">
+            <strong>夜色节奏布鲁斯</strong>
+            <span>磁性男声、节奏布鲁斯、低频律动，适合潮牌和咖啡馆。</span>
+          </button>
+          <button class="template" data-template="game">
+            <strong>游戏循环</strong>
+            <span>电子与电影配乐融合，可做关卡、PV 和直播背景。</span>
+          </button>
+          <button class="template" data-template="folk">
+            <strong>温暖民谣片尾</strong>
+            <span>木吉他、合唱尾声，适合纪录片和旅行内容。</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="grid" id="create">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>歌曲提示词</h2>
+            <span class="status"><i class="dot"></i><span id="engineState">本地演示引擎就绪</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="prompt">音乐需求</label>
+              <textarea id="prompt" placeholder="例如：为一个夏季咖啡品牌广告生成 45 秒中文流行歌曲，轻快、清爽、有记忆点。"></textarea>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="style">风格</label>
+                <select id="style">
+                  <option>中文流行</option>
+                  <option>流行抒情</option>
+                  <option>节奏布鲁斯</option>
+                  <option>说唱</option>
+                  <option>电子舞曲</option>
+                  <option>未来贝斯</option>
+                  <option>城市流行</option>
+                  <option>低保真</option>
+                  <option>电影配乐</option>
+                  <option>国风融合</option>
+                  <option>独立摇滚</option>
+                  <option>民谣</option>
+                  <option>爵士</option>
+                  <option>金属摇滚</option>
+                  <option>儿童歌曲</option>
+                  <option>古典跨界</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="usecase">用途</label>
+                <select id="usecase">
+                  <option>短视频 BGM</option>
+                  <option>品牌广告</option>
+                  <option>播客片头</option>
+                  <option>游戏循环音乐</option>
+                  <option>电商直播</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>情绪</label>
+              <div class="chips" id="moods">
+                <button class="chip active">明亮</button>
+                <button class="chip">高级</button>
+                <button class="chip">热血</button>
+                <button class="chip">松弛</button>
+                <button class="chip">神秘</button>
+                <button class="chip">温暖</button>
+              </div>
+            </div>
+
+            <div class="toggle-row">
+              <div>
+                <label>真人演唱模式</label>
+                <div class="subhead">演示版会模拟主唱音色，正式版可接入真实歌声生成模型。</div>
+              </div>
+              <div class="switch on" id="vocalSwitch" role="switch" aria-checked="true" tabindex="0"><i></i></div>
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="voiceType">演唱角色</label>
+                <select id="voiceType">
+                  <option>清亮女声</option>
+                  <option>温柔女声</option>
+                  <option>磁性男声</option>
+                  <option>少年男声</option>
+                  <option>男女对唱</option>
+                  <option>多人合唱</option>
+                  <option>儿童声线</option>
+                  <option>低沉男声</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="voiceIntensity">人声音色 <span id="voiceIntensityLabel">70%</span></label>
+                <div class="range-row">
+                  <input id="voiceIntensity" type="range" min="0" max="100" value="70">
+                  <span id="voiceIntensityValue">70%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="duration">时长 <span id="durationLabel">36s</span></label>
+              <div class="range-row">
+                <input id="duration" type="range" min="16" max="72" value="36">
+                <span id="durationValue">36 秒</span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="lyrics">歌词或口号</label>
+              <textarea id="lyrics" placeholder="可选：输入歌词。留空时系统会根据需求自动生成短句。"></textarea>
+            </div>
+
+            <button class="btn accent" id="generateBtn" style="width:100%">生成 2 首歌</button>
+          </div>
+        </div>
+
+        <div class="studio">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>当前播放</h2>
+              <div class="actions">
+                <button class="btn" id="downloadBtn" disabled>下载</button>
+                <button class="btn" id="licenseBtn" disabled>授权</button>
+              </div>
+            </div>
+            <div class="panel-body stage">
+              <div class="cover"><canvas id="coverCanvas" width="420" height="420"></canvas></div>
+              <div class="track-meta">
+                <div>
+                  <h2 id="trackTitle">还没有生成作品</h2>
+                  <p id="trackDesc">填写左侧需求后开始生成。这个演示版本会在浏览器里合成一段可播放音频，用来验证网站流程。</p>
+                  <div class="badges" id="trackBadges">
+                    <span class="badge">演示版本</span>
+                    <span class="badge">可播放</span>
+                    <span class="badge">可下载</span>
+                  </div>
+                </div>
+                <div class="wave-wrap">
+                  <canvas id="waveform" width="900" height="140"></canvas>
+                  <div class="transport">
+                    <button class="round" id="playBtn" disabled title="播放或暂停">▶</button>
+                    <div class="progress" aria-label="播放进度"><i id="playProgress"></i></div>
+                    <time id="timeLabel">00:00 / 00:00</time>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3>生成中</h3>
+              <span class="subhead" id="queueCount">0 个任务</span>
+            </div>
+            <div class="panel-body queue" id="queue"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="life-song">
+        <div class="panel-head">
+          <h2>生活写歌</h2>
+          <span class="subhead">把生日、爱情、亲情、打工、旅行、遗憾和祝福写成歌</span>
+        </div>
+        <div class="panel-body life-grid">
+          <div class="story-box">
+            <label for="lifeStory">写下你的故事</label>
+            <textarea id="lifeStory" placeholder="例如：我妈妈今年 60 岁，她一辈子很辛苦，我想送她一首温暖的歌，歌词朴实一点，像儿女在认真说心里话。"></textarea>
+            <div class="split">
+              <div class="field">
+                <label for="songTheme">歌曲主题</label>
+                <select id="songTheme">
+                  <option>送给父母</option>
+                  <option>婚礼表白</option>
+                  <option>生日祝福</option>
+                  <option>纪念爱情</option>
+                  <option>怀念故人</option>
+                  <option>打工人的心声</option>
+                  <option>家乡与远方</option>
+                  <option>孩子成长</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="lyricTone">歌词口吻</label>
+                <select id="lyricTone">
+                  <option>朴实真诚</option>
+                  <option>温暖治愈</option>
+                  <option>感人催泪</option>
+                  <option>轻松幽默</option>
+                  <option>热血励志</option>
+                  <option>浪漫细腻</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="smartPromptBtn">智能生成提示词</button>
+              <button class="btn" id="storyToPostBtn">发布到社区</button>
+            </div>
+            <div class="helper-result" id="helperResult" hidden>
+              <b id="helperTitle">AI 歌名</b>
+              <p id="helperShareText">生成后会显示适合分享的文案。</p>
+              <button class="btn" id="shareHelperBtn">把 AI 文案发布到社区</button>
+            </div>
+          </div>
+          <div class="smart-card">
+            <h3>大众创作助手</h3>
+            <p>不用懂乐理。你只需要写清楚人物、故事、情绪和想送给谁，系统会帮你整理成适合生成歌曲的提示词。</p>
+            <div class="badges">
+              <span class="badge">生日歌</span>
+              <span class="badge">表白歌</span>
+              <span class="badge">亲情歌</span>
+              <span class="badge">纪念歌</span>
+              <span class="badge">家乡歌</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="community">
+        <div class="panel-head">
+          <h2>社区广场</h2>
+          <span class="subhead">分享生活、发歌、听听普通人的故事</span>
+        </div>
+        <div class="panel-body community-layout">
+          <div class="post-composer">
+            <label for="postText">发一条动态</label>
+            <textarea id="postText" placeholder="分享你的生活故事、想写的歌，或者刚生成的音乐灵感。"></textarea>
+            <div class="split">
+              <select id="postTopic">
+                <option>生活故事</option>
+                <option>我的原创歌</option>
+                <option>求帮写歌</option>
+                <option>情感树洞</option>
+                <option>家乡记忆</option>
+              </select>
+              <button class="btn accent" id="publishPostBtn">发布动态</button>
+            </div>
+          </div>
+          <div class="feed" id="communityFeed"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>制作流程</h2>
+          <span class="subhead">从灵感到商用交付的一条龙能力</span>
+        </div>
+        <div class="panel-body feature-grid">
+          <div class="feature">
+            <i>1</i>
+            <b>歌词与旋律</b>
+            <p>输入主题、口号或完整歌词，生成适合男声、女声、对唱或合唱的歌曲。</p>
+          </div>
+          <div class="feature">
+            <i>2</i>
+            <b>风格编曲</b>
+            <p>覆盖流行、节奏布鲁斯、电子、国风、民谣、爵士、游戏和广告配乐。</p>
+          </div>
+          <div class="feature">
+            <i>3</i>
+            <b>版本管理</b>
+            <p>每次生成保存版本、参数、提示词和音频文件，便于客户挑选。</p>
+          </div>
+          <div class="feature">
+            <i>4</i>
+            <b>授权交付</b>
+            <p>付费后导出 WAV/MP3、授权记录和商用说明，适合团队使用。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="library">
+        <div class="panel-head">
+          <h2>我的作品库</h2>
+          <span class="subhead">你生成的歌曲会出现在这里</span>
+        </div>
+        <div class="panel-body library" id="libraryList"></div>
+      </section>
+
+      <section class="panel" id="rights">
+        <div class="panel-head">
+          <h2>发现与安全</h2>
+          <span class="subhead">热门写歌方向、创作提示和版权安全说明</span>
+        </div>
+        <div class="panel-body business">
+          <div class="plan">
+            <h3>热门主题</h3>
+            <p>父母生日、婚礼表白、孩子成长、家乡回忆、打工心声、纪念故人。</p>
+          </div>
+          <div class="plan">
+            <h3>创作建议</h3>
+            <p>写清楚“谁、发生了什么、想表达什么、想送给谁”，系统会更容易写出真情实感。</p>
+          </div>
+          <div class="plan">
+            <h3>版权安全</h3>
+            <p>不要要求模仿真实歌手、复刻已有歌曲或克隆未经授权的人声。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="api-status-panel">
+        <div class="panel-head">
+          <h2>API 状态与使用入口</h2>
+          <span class="subhead">这里能看到网站已经接入哪些模型，以及该在哪里使用</span>
+        </div>
+        <div class="panel-body api-grid">
+          <div class="api-card">
+            <div class="api-card-head">
+              <b>智能写歌助手</b>
+              <span class="api-pill" id="textApiStatus">检测中</span>
+            </div>
+            <p>把普通人的生活故事整理成歌名、歌词、提示词、推荐风格和分享文案。</p>
+            <div class="api-steps">
+              <span>入口：生活写歌 → 智能生成提示词</span>
+              <span>接口：POST /api/ai/song-helper</span>
+              <span>配置：OPENROUTER_API_KEY</span>
+            </div>
+          </div>
+          <div class="api-card">
+            <div class="api-card-head">
+              <b>真人音乐生成</b>
+              <span class="api-pill" id="musicApiStatus">检测中</span>
+            </div>
+            <p>根据提示词、歌词、风格和声音选项生成完整歌曲。没配置时使用本地演示音频。</p>
+            <div class="api-steps">
+              <span>入口：创作 → 生成 2 首歌</span>
+              <span>接口：POST /api/generate</span>
+              <span>配置：MINIMAX_API_KEY 或 MUREKA_API_KEY</span>
+            </div>
+          </div>
+          <div class="api-card">
+            <div class="api-card-head">
+              <b>社区与账号</b>
+              <span class="api-pill connected">本地可用</span>
+            </div>
+            <p>注册登录、头像菜单、积分演示、社区发帖和作品库页面已经接入本地后端。</p>
+            <div class="api-steps">
+              <span>入口：左侧头像 / 社区 / 作品库</span>
+              <span>接口：/api/auth/*、/api/library</span>
+              <span>正式版：换 PostgreSQL + 对象存储</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="plans">
+        <div class="panel-head">
+          <h2>积分套餐</h2>
+          <span class="subhead">正式上线后可接微信支付、支付宝和企业转账</span>
+        </div>
+        <div class="panel-body business">
+          <div class="plan">
+            <h3>免费版</h3>
+            <div class="price">¥0</div>
+            <p>每日少量生成，个人试用，MP3 预览，不含商用授权。</p>
+          </div>
+          <div class="plan">
+            <h3>创作者版</h3>
+            <div class="price">¥69/月</div>
+            <p>更高额度，WAV 下载，短视频和自媒体项目商用。</p>
+          </div>
+          <div class="plan">
+            <h3>工作室版</h3>
+            <div class="price">¥299/月</div>
+            <p>团队协作、分轨、批量生成、品牌音乐包和发票支持。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="profile-popover" id="profilePopover">
+    <div class="feed-author"><span class="avatar" id="menuAvatar">访</span><span id="menuName">游客</span></div>
+      <div class="profile-line"><span>账号</span><b id="menuEmail">未登录</b></div>
+      <div class="profile-line"><span>积分余额</span><b id="menuCredits">0</b></div>
+      <div class="profile-line"><span>会员等级</span><b id="menuPlan">免费用户</b></div>
+      <div class="profile-line"><span>写歌助手</span><b id="menuTextApi">检测中</b></div>
+      <div class="profile-line"><span>音乐模型</span><b id="menuMusicApi">检测中</b></div>
+    <div>
+      <div class="profile-line" style="margin-bottom:8px"><span>积分充值</span><b>开发演示</b></div>
+      <div class="recharge-grid">
+        <button class="recharge-card" data-recharge="60"><b>60 积分</b><small>¥9.9</small></button>
+        <button class="recharge-card" data-recharge="180"><b>180 积分</b><small>¥29</small></button>
+        <button class="recharge-card" data-recharge="500"><b>500 积分</b><small>¥68</small></button>
+      </div>
+    </div>
+    <button class="btn" id="profileLogoutBtn">退出登录</button>
+  </div>
+
+  <script>
+    const state = {
+      credits: 84,
+      selectedMood: '明亮',
+      vocals: true,
+      current: null,
+      audio: null,
+      audioUrl: null,
+      api: { ready: false, provider: 'demo' },
+      user: null,
+      queue: [],
+      library: [],
+      lastHelper: null,
+      posts: [
+        {
+          author: '春梅',
+          topic: '送给父母',
+          text: '想给我爸妈写一首歌，他们在县城开小店三十年，没说过什么漂亮话，但把家撑起来了。',
+          song: '《小店灯光》',
+          time: '刚刚'
+        },
+        {
+          author: '阿强',
+          topic: '打工人的心声',
+          text: '今天下夜班路上突然想写歌，想把普通人的累和不服输写进去。',
+          song: '《凌晨三点的路》',
+          time: '12 分钟前'
+        },
+        {
+          author: '小雨',
+          topic: '婚礼表白',
+          text: '婚礼快到了，想给她唱一首不油腻的歌，像我们这些年一起租房、搬家、攒钱的日子。',
+          song: '《慢慢有了家》',
+          time: '28 分钟前'
+        }
+      ]
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const promptEl = $('prompt');
+    const styleEl = $('style');
+    const usecaseEl = $('usecase');
+    const voiceTypeEl = $('voiceType');
+    const voiceIntensityEl = $('voiceIntensity');
+    const lyricsEl = $('lyrics');
+    const durationEl = $('duration');
+    const durationValue = $('durationValue');
+    const durationLabel = $('durationLabel');
+    const playBtn = $('playBtn');
+    const downloadBtn = $('downloadBtn');
+    const licenseBtn = $('licenseBtn');
+    const coverCanvas = $('coverCanvas');
+    const waveCanvas = $('waveform');
+    const coverCtx = coverCanvas.getContext('2d');
+    const waveCtx = waveCanvas.getContext('2d');
+    const progressEl = $('playProgress');
+    const timeLabel = $('timeLabel');
+
+    function showToast(text) {
+      const toast = $('toast');
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function setupPageViews() {
+      const main = document.querySelector('main');
+      if (!main || document.querySelector('[data-page-view="create"]')) return;
+
+      const createView = document.createElement('div');
+      createView.className = 'page-view active';
+      createView.dataset.pageView = 'create';
+      const libraryView = document.createElement('div');
+      libraryView.className = 'page-view';
+      libraryView.dataset.pageView = 'library';
+      const communityView = document.createElement('div');
+      communityView.className = 'page-view';
+      communityView.dataset.pageView = 'community';
+      const lifeView = document.createElement('div');
+      lifeView.className = 'page-view';
+      lifeView.dataset.pageView = 'life-song';
+      const discoverView = document.createElement('div');
+      discoverView.className = 'page-view';
+      discoverView.dataset.pageView = 'rights';
+      const plansView = document.createElement('div');
+      plansView.className = 'page-view';
+      plansView.dataset.pageView = 'plans';
+
+      const pageTitle = (title, desc) => {
+        const el = document.createElement('div');
+        el.className = 'page-title';
+        el.innerHTML = `<h1>${title}</h1><p>${desc}</p>`;
+        return el;
+      };
+
+      const children = [...main.children];
+      const templatePanel = children.find(el => el.classList.contains('panel') && el.querySelector('[data-template]'));
+      const createGrid = $('create');
+      const life = $('life-song');
+      const community = $('community');
+      const library = $('library');
+      const rights = $('rights');
+      const apiStatusPanel = $('api-status-panel');
+      const plans = $('plans');
+      const featurePanel = children.find(el => el.classList.contains('panel') && el.querySelector('.feature-grid'));
+
+      createView.appendChild(document.querySelector('.topbar'));
+      if (templatePanel) createView.appendChild(templatePanel);
+      if (createGrid) createView.appendChild(createGrid);
+
+      libraryView.appendChild(pageTitle('我的作品库', '查看你生成过的歌曲、版本、下载记录和商用授权。'));
+      if (library) libraryView.appendChild(library);
+
+      communityView.appendChild(pageTitle('社区广场', '普通人分享生活、音乐和故事，也可以互相帮忙把故事写成歌。'));
+      if (community) communityView.appendChild(community);
+
+      lifeView.appendChild(pageTitle('生活写歌', '不会写词也没关系，写下真实经历，系统帮你整理成歌曲提示词。'));
+      if (life) lifeView.appendChild(life);
+
+      discoverView.appendChild(pageTitle('发现', '发现写歌玩法、热门故事、版权说明和创作灵感。'));
+      if (featurePanel) discoverView.appendChild(featurePanel);
+      if (rights) discoverView.appendChild(rights);
+      if (apiStatusPanel) discoverView.appendChild(apiStatusPanel);
+
+      plansView.appendChild(pageTitle('套餐与充值', '按需购买积分，给家人、朋友、品牌和自己创作更多歌曲。'));
+      if (plans) plansView.appendChild(plans);
+
+      main.innerHTML = '';
+      [createView, libraryView, communityView, lifeView, discoverView, plansView].forEach(view => main.appendChild(view));
+    }
+
+    function showPage(page) {
+      document.querySelectorAll('.page-view').forEach(view => {
+        view.classList.toggle('active', view.dataset.pageView === page);
+      });
+      document.querySelectorAll('.nav button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.jump === page);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const popover = $('profilePopover');
+      if (popover) popover.classList.remove('open');
+    }
+
+    function renderProfileSummary() {
+      const name = state.user ? state.user.name : '游客';
+      const email = state.user ? state.user.email : '未登录';
+      const credits = state.user ? state.user.credits : state.credits;
+      const initial = name ? name.slice(0, 1) : '访';
+      if ($('profileName')) $('profileName').textContent = name;
+      if ($('profileCredits')) $('profileCredits').textContent = state.user ? `${credits} 积分 · ${email}` : '注册后送 40 积分';
+      if ($('profileAvatar')) $('profileAvatar').textContent = initial;
+      if ($('menuAvatar')) $('menuAvatar').textContent = initial;
+      if ($('menuName')) $('menuName').textContent = name;
+      if ($('menuEmail')) $('menuEmail').textContent = email;
+      if ($('menuCredits')) $('menuCredits').textContent = credits;
+      if ($('menuPlan')) $('menuPlan').textContent = state.user ? '免费用户' : '未登录';
+    }
+
+    function bindProfileMenu() {
+      const trigger = $('profileTrigger');
+      const popover = $('profilePopover');
+      if (!trigger || !popover) return;
+      trigger.addEventListener('click', () => {
+        renderProfileSummary();
+        popover.classList.toggle('open');
+      });
+      document.querySelectorAll('[data-recharge]').forEach(button => {
+        button.addEventListener('click', () => {
+          const amount = Number(button.dataset.recharge);
+          if (!state.user) {
+            showToast('请先注册或登录，再充值积分。');
+            return;
+          }
+          state.user.credits += amount;
+          state.credits = state.user.credits;
+          $('credits').textContent = state.credits;
+          renderAuth();
+          renderProfileSummary();
+          showToast(`已模拟充值 ${amount} 积分，正式版会接微信/支付宝。`);
+        });
+      });
+      const logoutBtn = $('profileLogoutBtn');
+      if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    }
+
+    async function loadApiConfig() {
+      if (location.protocol === 'file:') {
+        $('engineState').textContent = '本地演示引擎就绪';
+        renderApiStatus();
+        return;
+      }
+      try {
+        const response = await fetch('/api/config');
+        if (!response.ok) throw new Error('config unavailable');
+        state.api = await response.json();
+        $('engineState').textContent = state.api.ready ? '真实音乐 API 已连接：' + state.api.provider : '未配置 API Key，使用演示引擎';
+      } catch (error) {
+        state.api = { ready: false, provider: 'demo' };
+        $('engineState').textContent = '演示引擎就绪';
+      }
+      renderApiStatus();
+    }
+
+    function renderApiStatus() {
+      const textReady = !!state.api.textModelReady;
+      const musicReady = !!state.api.ready;
+      const textLabel = textReady ? '已连接' : '本地规则';
+      const musicLabel = musicReady ? '已连接：' + state.api.provider : '本地演示';
+      const textStatus = $('textApiStatus');
+      const musicStatus = $('musicApiStatus');
+      if (textStatus) {
+        textStatus.textContent = textLabel;
+        textStatus.classList.toggle('connected', textReady);
+      }
+      if (musicStatus) {
+        musicStatus.textContent = musicLabel;
+        musicStatus.classList.toggle('connected', musicReady);
+      }
+      if ($('menuTextApi')) $('menuTextApi').textContent = textLabel;
+      if ($('menuMusicApi')) $('menuMusicApi').textContent = musicLabel;
+    }
+
+    async function apiFetch(url, options = {}) {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || '请求失败');
+      return data;
+    }
+
+    function renderAuth() {
+      const box = $('authBox');
+      if (!box) return;
+      if (!state.user) {
+        box.innerHTML = `
+          <strong id="authTitle">注册后开始创作</strong>
+          <small id="authHint">注册送 40 积分，作品会保存到你的账号。</small>
+          <input id="authName" placeholder="昵称">
+          <input id="authEmail" type="email" placeholder="邮箱">
+          <input id="authPassword" type="password" placeholder="密码，至少 6 位">
+          <div class="auth-row">
+            <button class="btn primary" id="registerBtn" type="submit" data-auth-action="register">注册</button>
+            <button class="btn" id="loginBtn" type="button" data-auth-action="login">登录</button>
+          </div>
+        `;
+        bindAuthButtons();
+        renderProfileSummary();
+        return;
+      }
+      box.innerHTML = `
+        <strong>${state.user.name}</strong>
+        <small>${state.user.email}<br>账号积分：${state.user.credits}</small>
+        <button class="btn" id="logoutBtn" type="button">退出登录</button>
+      `;
+      $('logoutBtn').addEventListener('click', logout);
+      renderProfileSummary();
+    }
+
+    async function loadCurrentUser() {
+      if (location.protocol === 'file:') {
+        renderAuth();
+        return;
+      }
+      try {
+        const data = await apiFetch('/api/auth/me', { method: 'GET', headers: {} });
+        state.user = data.user;
+        if (state.user && typeof state.user.credits === 'number') {
+          state.credits = state.user.credits;
+          $('credits').textContent = state.credits;
+        }
+      } catch (error) {
+        state.user = null;
+      }
+      renderAuth();
+    }
+
+    function getAuthPayload() {
+      return {
+        name: $('authName') ? $('authName').value.trim() : '',
+        email: $('authEmail') ? $('authEmail').value.trim() : '',
+        password: $('authPassword') ? $('authPassword').value : ''
+      };
+    }
+
+    async function register() {
+      try {
+        const data = await apiFetch('/api/auth/register', {
+          method: 'POST',
+          body: JSON.stringify(getAuthPayload())
+        });
+        state.user = data.user;
+        state.credits = data.user.credits;
+        $('credits').textContent = state.credits;
+        renderAuth();
+        showToast('注册成功，已赠送 40 积分。');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    async function login() {
+      try {
+        const payload = getAuthPayload();
+        const data = await apiFetch('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: payload.email, password: payload.password })
+        });
+        state.user = data.user;
+        state.credits = data.user.credits;
+        $('credits').textContent = state.credits;
+        renderAuth();
+        showToast('登录成功。');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    async function logout() {
+      try {
+        await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+      } catch (error) {}
+      state.user = null;
+      renderAuth();
+      showToast('已退出登录。');
+    }
+
+    function bindAuthButtons() {
+      const box = $('authBox');
+      if (!box || box.dataset.bound === 'true') return;
+      box.dataset.bound = 'true';
+      box.addEventListener('submit', (event) => {
+        event.preventDefault();
+        register();
+      });
+      box.addEventListener('click', (event) => {
+        const action = event.target && event.target.dataset ? event.target.dataset.authAction : '';
+        if (action === 'register') {
+          event.preventDefault();
+          register();
+        }
+        if (action === 'login') {
+          event.preventDefault();
+          login();
+        }
+      });
+    }
+
+    function formatTime(seconds) {
+      const s = Math.max(0, Math.floor(seconds || 0));
+      return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    function hashText(text) {
+      let h = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function randomFromSeed(seed) {
+      let x = seed || 1234567;
+      return function() {
+        x ^= x << 13;
+        x ^= x >>> 17;
+        x ^= x << 5;
+        return ((x >>> 0) / 4294967295);
+      };
+    }
+
+    function drawCover(seed, title) {
+      const rnd = randomFromSeed(seed);
+      const palettes = [
+        ['#0f766e', '#f59e0b', '#fff7ed', '#171717'],
+        ['#2563eb', '#dc2626', '#f8fafc', '#111827'],
+        ['#166534', '#7c2d12', '#fefce8', '#1f2937'],
+        ['#7f1d1d', '#0e7490', '#f5f5f4', '#18181b']
+      ];
+      const p = palettes[seed % palettes.length];
+      coverCtx.fillStyle = p[2];
+      coverCtx.fillRect(0, 0, 420, 420);
+      for (let i = 0; i < 34; i++) {
+        coverCtx.fillStyle = p[i % 2];
+        coverCtx.globalAlpha = 0.16 + rnd() * 0.55;
+        const x = rnd() * 420;
+        const y = rnd() * 420;
+        const w = 18 + rnd() * 140;
+        const h = 10 + rnd() * 96;
+        coverCtx.save();
+        coverCtx.translate(x, y);
+        coverCtx.rotate((rnd() - 0.5) * 1.4);
+        coverCtx.fillRect(-w / 2, -h / 2, w, h);
+        coverCtx.restore();
+      }
+      coverCtx.globalAlpha = 1;
+      coverCtx.fillStyle = 'rgba(255,255,255,0.78)';
+      coverCtx.fillRect(28, 288, 364, 88);
+      coverCtx.fillStyle = p[3];
+      coverCtx.font = '700 26px system-ui, sans-serif';
+      coverCtx.fillText(title.slice(0, 14), 46, 326);
+      coverCtx.font = '14px system-ui, sans-serif';
+      coverCtx.fillText('Auraly AI Generated Music', 46, 354);
+    }
+
+    function drawWave(samples) {
+      const width = waveCanvas.width;
+      const height = waveCanvas.height;
+      waveCtx.clearRect(0, 0, width, height);
+      waveCtx.fillStyle = '#fffefb';
+      waveCtx.fillRect(0, 0, width, height);
+      waveCtx.strokeStyle = '#d8d1c2';
+      waveCtx.beginPath();
+      waveCtx.moveTo(0, height / 2);
+      waveCtx.lineTo(width, height / 2);
+      waveCtx.stroke();
+      waveCtx.strokeStyle = '#0f766e';
+      waveCtx.lineWidth = 2;
+      waveCtx.beginPath();
+      const step = Math.ceil(samples.length / width);
+      for (let x = 0; x < width; x++) {
+        let min = 1;
+        let max = -1;
+        for (let j = 0; j < step; j++) {
+          const v = samples[(x * step + j) % samples.length] || 0;
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        waveCtx.moveTo(x, (1 + min) * height / 2);
+        waveCtx.lineTo(x, (1 + max) * height / 2);
+      }
+      waveCtx.stroke();
+    }
+
+    function generatePcm(config) {
+      const sampleRate = 44100;
+      const seconds = Number(config.duration);
+      const total = sampleRate * seconds;
+      const out = new Float32Array(total);
+      const seed = hashText(config.prompt + config.style + config.mood + config.voiceType + config.variant);
+      const rnd = randomFromSeed(seed);
+      const roots = {
+        '中文流行': [261.63, 329.63, 392.00, 440.00],
+        '流行抒情': [220.00, 277.18, 329.63, 392.00],
+        '节奏布鲁斯': [196.00, 246.94, 311.13, 369.99],
+        '说唱': [98.00, 130.81, 146.83, 196.00],
+        '电子舞曲': [110.00, 146.83, 174.61, 220.00],
+        '未来贝斯': [130.81, 164.81, 196.00, 261.63],
+        '城市流行': [246.94, 311.13, 369.99, 493.88],
+        '低保真': [196.00, 246.94, 293.66, 349.23],
+        '电影配乐': [130.81, 196.00, 261.63, 392.00],
+        '国风融合': [293.66, 329.63, 392.00, 493.88],
+        '独立摇滚': [164.81, 220.00, 246.94, 329.63],
+        '民谣': [196.00, 246.94, 293.66, 392.00],
+        '爵士': [174.61, 220.00, 277.18, 349.23],
+        '金属摇滚': [82.41, 110.00, 146.83, 164.81],
+        '儿童歌曲': [261.63, 329.63, 392.00, 523.25],
+        '古典跨界': [130.81, 196.00, 329.63, 523.25]
+      };
+      const chord = roots[config.style] || roots['中文流行'];
+      const tempoMap = { '明亮': 118, '高级': 96, '热血': 138, '松弛': 82, '神秘': 88, '温暖': 102 };
+      const bpm = tempoMap[config.mood] || 110;
+      const beat = 60 / bpm;
+      const notes = [0, 2, 4, 7, 9, 7, 4, 2].map(n => Math.pow(2, n / 12));
+      const brightStyles = ['电子舞曲', '未来贝斯', '城市流行', '儿童歌曲'];
+      const heavyStyles = ['说唱', '金属摇滚'];
+      const brightness = config.mood === '热血' || brightStyles.includes(config.style) ? 1.2 : 0.85;
+      const vocalProfiles = {
+        '清亮女声': { range: 2.25, tone: 1.28, breath: 0.045, harmony: 0 },
+        '温柔女声': { range: 2.0, tone: 0.92, breath: 0.035, harmony: 0 },
+        '磁性男声': { range: 1.0, tone: 0.72, breath: 0.025, harmony: 0 },
+        '少年男声': { range: 1.6, tone: 1.08, breath: 0.035, harmony: 0 },
+        '男女对唱': { range: 1.45, tone: 1.0, breath: 0.03, harmony: 0.38 },
+        '多人合唱': { range: 1.35, tone: 0.9, breath: 0.028, harmony: 0.68 },
+        '儿童声线': { range: 2.55, tone: 1.38, breath: 0.05, harmony: 0.18 },
+        '低沉男声': { range: 0.75, tone: 0.58, breath: 0.018, harmony: 0 }
+      };
+      const voice = vocalProfiles[config.voiceType] || vocalProfiles['清亮女声'];
+      const voiceGain = (config.voiceIntensity || 0) / 100;
+
+      for (let i = 0; i < total; i++) {
+        const t = i / sampleRate;
+        const bar = Math.floor(t / (beat * 4));
+        const beatIndex = Math.floor(t / beat);
+        const chordRoot = chord[bar % chord.length];
+        const bass = Math.sin(2 * Math.PI * (chordRoot / 2) * t) * 0.24;
+        const pad = (
+          Math.sin(2 * Math.PI * chordRoot * t) +
+          Math.sin(2 * Math.PI * chordRoot * 1.25 * t) * 0.65 +
+          Math.sin(2 * Math.PI * chordRoot * 1.5 * t) * 0.5
+        ) * 0.12;
+        const arpFreq = chordRoot * notes[(beatIndex + config.variant) % notes.length] * (config.style === '电影配乐' ? 0.5 : 1);
+        const arpEnv = Math.exp(-((t % (beat / 2)) * 9));
+        const arp = Math.sin(2 * Math.PI * arpFreq * t) * arpEnv * 0.18 * brightness;
+        const kickPhase = t % beat;
+        const kick = Math.sin(2 * Math.PI * (62 - kickPhase * 22) * t) * Math.exp(-kickPhase * 18) * (heavyStyles.includes(config.style) ? 0.54 : 0.42);
+        const hatGate = (t % (beat / 2)) < 0.025 ? 1 : 0;
+        const hat = (rnd() * 2 - 1) * hatGate * 0.055;
+        const snareGate = beatIndex % 4 === 2 && (t % beat) < 0.055 ? 1 : 0;
+        const snare = (rnd() * 2 - 1) * snareGate * 0.15;
+        const melodyFreq = chordRoot * voice.range * notes[(Math.floor(t / (beat * 0.75)) + 3 + config.variant) % notes.length];
+        const vibrato = Math.sin(2 * Math.PI * 5.2 * t) * 2.8;
+        const vocalEnv = config.vocals ? (0.55 + 0.45 * Math.sin(2 * Math.PI * t / (beat * 2))) : 0;
+        const vowel = (
+          Math.sin(2 * Math.PI * (melodyFreq + vibrato) * t) +
+          Math.sin(2 * Math.PI * (melodyFreq * 2.01 + vibrato) * t) * 0.34 * voice.tone +
+          Math.sin(2 * Math.PI * (melodyFreq * 3.02 + vibrato) * t) * 0.18 * voice.tone
+        );
+        const duet = Math.sin(2 * Math.PI * (melodyFreq * 0.5 + vibrato * 0.45) * t) * voice.harmony;
+        const choir = Math.sin(2 * Math.PI * (melodyFreq * 1.5 + vibrato * 0.7) * t) * voice.harmony * 0.55;
+        const breath = (rnd() * 2 - 1) * voice.breath;
+        const vocal = (vowel + duet + choir + breath) * 0.12 * vocalEnv * voiceGain;
+        const fadeIn = Math.min(1, t / 1.2);
+        const fadeOut = Math.min(1, (seconds - t) / 1.4);
+        out[i] = Math.tanh((bass + pad + arp + kick + hat + snare + vocal) * fadeIn * fadeOut * 0.92);
+      }
+      return { samples: out, sampleRate, seed };
+    }
+
+    function encodeWav(samples, sampleRate) {
+      const bytesPerSample = 2;
+      const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+      const view = new DataView(buffer);
+      const write = (offset, text) => {
+        for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+      };
+      write(0, 'RIFF');
+      view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+      write(8, 'WAVE');
+      write(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * bytesPerSample, true);
+      view.setUint16(32, bytesPerSample, true);
+      view.setUint16(34, 16, true);
+      write(36, 'data');
+      view.setUint32(40, samples.length * bytesPerSample, true);
+      let offset = 44;
+      for (let i = 0; i < samples.length; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function titleFrom(config) {
+      const words = (config.prompt || '').replace(/[，。,.!！?？]/g, ' ').trim().split(/\s+/).filter(Boolean);
+      const base = words.slice(0, 4).join(' ') || config.usecase;
+      return base.length > 18 ? base.slice(0, 18) : base;
+    }
+
+    function setCurrent(track) {
+      state.current = track;
+      if (state.audio) {
+        state.audio.pause();
+        if (state.audioUrl && state.audioUrl.startsWith('blob:')) URL.revokeObjectURL(state.audioUrl);
+      }
+      state.audioUrl = track.remoteUrl || URL.createObjectURL(track.blob);
+      state.audio = new Audio(state.audioUrl);
+      state.audio.addEventListener('timeupdate', updatePlayback);
+      state.audio.addEventListener('ended', () => { playBtn.textContent = '▶'; updatePlayback(); });
+      $('trackTitle').textContent = track.title;
+      $('trackDesc').textContent = track.prompt;
+      $('trackBadges').innerHTML = [
+        track.style,
+        track.mood,
+        track.usecase,
+        track.vocals ? '含主唱旋律' : '纯音乐',
+        track.vocals ? track.voiceType : '无人声',
+        track.duration + ' 秒'
+      ].map(x => '<span class="badge">' + x + '</span>').join('');
+      playBtn.disabled = false;
+      downloadBtn.disabled = false;
+      licenseBtn.disabled = false;
+      drawWave(track.samples);
+      drawCover(track.seed, track.title);
+      updatePlayback();
+    }
+
+    function updatePlayback() {
+      if (!state.audio) {
+        timeLabel.textContent = '00:00 / 00:00';
+        progressEl.style.width = '0%';
+        return;
+      }
+      const ratio = state.audio.duration ? state.audio.currentTime / state.audio.duration : 0;
+      progressEl.style.width = (ratio * 100).toFixed(2) + '%';
+      timeLabel.textContent = formatTime(state.audio.currentTime) + ' / ' + formatTime(state.audio.duration);
+    }
+
+    function renderQueue() {
+      $('queueCount').textContent = state.queue.length + ' 个任务';
+      $('queue').innerHTML = state.queue.length ? state.queue.map(task => `
+        <div class="item">
+          <div class="thumb"></div>
+          <div>
+            <b>${task.title}</b>
+            <span>${task.status} · ${task.progress}% · ${task.style} / ${task.mood}</span>
+          </div>
+          <div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>
+        </div>
+      `).join('') : '<div class="empty">暂无任务。点击生成后会看到排队、生成、完成状态。</div>';
+    }
+
+    function renderLibrary() {
+      $('libraryList').innerHTML = state.library.length ? state.library.map(track => `
+        <div class="item">
+          <div class="thumb" style="background:${track.thumb}"></div>
+          <div>
+            <b>${track.title}</b>
+            <span>${track.style} · ${track.voiceType} · ${track.mood} · ${track.duration}s · ${track.createdAt}</span>
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn" title="播放" data-play="${track.id}">▶</button>
+            <button class="icon-btn" title="下载" data-download="${track.id}">↓</button>
+          </div>
+        </div>
+      `).join('') : '<div class="empty">作品库还空着。生成完成后会自动保存两个版本。</div>';
+      document.querySelectorAll('[data-play]').forEach(btn => btn.addEventListener('click', () => {
+        const track = state.library.find(x => x.id === btn.dataset.play);
+        if (track) { setCurrent(track); playCurrent(); }
+      }));
+      document.querySelectorAll('[data-download]').forEach(btn => btn.addEventListener('click', () => {
+        const track = state.library.find(x => x.id === btn.dataset.download);
+        if (track) downloadTrack(track);
+      }));
+    }
+
+    function renderCommunity() {
+      const feed = $('communityFeed');
+      if (!feed) return;
+      feed.innerHTML = state.posts.map((post, index) => `
+        <article class="feed-card">
+          <div class="feed-meta">
+            <div class="feed-author"><span class="avatar">${post.author.slice(0, 1)}</span>${post.author}</div>
+            <span>${post.time} · ${post.topic}</span>
+          </div>
+          <p>${post.text}</p>
+          <div class="badges">
+            <span class="badge">${post.song}</span>
+            <span class="badge">可改成歌</span>
+            <span class="badge">生活创作</span>
+          </div>
+          <div class="feed-actions">
+            <button class="btn" data-use-post="${index}">用这个故事写歌</button>
+            <button class="btn">点赞</button>
+            <button class="btn">评论</button>
+          </div>
+        </article>
+      `).join('');
+      document.querySelectorAll('[data-use-post]').forEach(button => {
+        button.addEventListener('click', () => {
+          const post = state.posts[Number(button.dataset.usePost)];
+          $('lifeStory').value = post.text;
+          smartGeneratePrompt();
+        });
+      });
+    }
+
+    function applySongHelperResult(result, fallback) {
+      promptEl.value = result.prompt || fallback.prompt;
+      lyricsEl.value = result.lyrics || fallback.lyrics;
+      styleEl.value = result.style || fallback.style;
+      voiceTypeEl.value = result.voiceType || fallback.voiceType;
+      durationEl.value = result.duration || fallback.duration;
+      durationValue.textContent = durationEl.value + ' 秒';
+      durationLabel.textContent = durationEl.value + 's';
+      state.selectedMood = result.mood || fallback.mood;
+      document.querySelectorAll('#moods .chip').forEach(btn => btn.classList.toggle('active', btn.textContent.trim() === state.selectedMood));
+      state.lastHelper = {
+        title: result.title || fallback.title || '我的生活写成歌',
+        shareText: result.shareText || fallback.shareText || '我刚把自己的生活故事整理成了一首歌的创作灵感。',
+        theme: fallback.theme || '生活写歌'
+      };
+      renderHelperResult();
+      showPage('create');
+    }
+
+    function buildLocalSongHelper(story, theme, tone) {
+      return {
+        title: theme.includes('父母') ? '给父母的一首歌' : theme.includes('婚礼') ? '慢慢有了家' : theme.includes('故人') ? '想念的人' : '我的故事会唱歌',
+        prompt: `为普通人创作一首${tone}的中文歌曲，主题是“${theme}”。故事背景：${story}。歌曲要旋律好记，歌词像真实的人在说心里话，不要空洞口号，适合家人朋友分享。`,
+        lyrics: `我把故事轻轻唱给你听\\n那些没说出口的心情\\n平凡日子也有光\\n一路走来都值得被记清`,
+        style: theme.includes('父母') || theme.includes('故人') ? '民谣' : theme.includes('婚礼') || theme.includes('爱情') ? '中文流行' : '流行抒情',
+        voiceType: theme.includes('父母') || theme.includes('故人') ? '温柔女声' : '清亮女声',
+        mood: tone.includes('催泪') || tone.includes('治愈') ? '温暖' : tone.includes('励志') ? '热血' : '明亮',
+        duration: 36,
+        shareText: `我想把这个故事写成歌：${story.slice(0, 54)}${story.length > 54 ? '...' : ''}`,
+        theme
+      };
+    }
+
+    function renderHelperResult() {
+      const box = $('helperResult');
+      if (!box || !state.lastHelper) return;
+      box.hidden = false;
+      $('helperTitle').textContent = '《' + state.lastHelper.title.replace(/[《》]/g, '') + '》';
+      $('helperShareText').textContent = state.lastHelper.shareText;
+    }
+
+    function shareHelperToCommunity() {
+      if (!state.lastHelper) {
+        showToast('先用智能生成提示词整理一个故事。');
+        return;
+      }
+      state.posts.unshift({
+        author: state.user ? state.user.name : '新朋友',
+        topic: state.lastHelper.theme || '生活写歌',
+        text: state.lastHelper.shareText,
+        song: '《' + state.lastHelper.title.replace(/[《》]/g, '') + '》',
+        time: '刚刚'
+      });
+      renderCommunity();
+      showPage('community');
+      showToast('AI 文案已发布到社区。');
+    }
+
+    async function smartGeneratePrompt() {
+      const story = $('lifeStory') ? $('lifeStory').value.trim() : '';
+      const theme = $('songTheme') ? $('songTheme').value : '生活故事';
+      const tone = $('lyricTone') ? $('lyricTone').value : '朴实真诚';
+      if (!story) {
+        showToast('先写下一段生活故事，再生成提示词。');
+        return;
+      }
+      const fallback = buildLocalSongHelper(story, theme, tone);
+      showToast('正在用智能模型整理故事...');
+      if (location.protocol !== 'file:') {
+        try {
+          const data = await apiFetch('/api/ai/song-helper', {
+            method: 'POST',
+            body: JSON.stringify({ story, theme, tone })
+          });
+          applySongHelperResult(data.helper || {}, fallback);
+          showToast('已用免费模型生成歌曲提示词。');
+          return;
+        } catch (error) {
+          applySongHelperResult(fallback, fallback);
+          showToast('未配置免费模型 Key，已使用本地智能规则。');
+          return;
+        }
+      }
+      applySongHelperResult(fallback, fallback);
+      showToast('已生成歌曲提示词，可以直接开始创作。');
+    }
+
+    function publishPost() {
+      const text = $('postText') ? $('postText').value.trim() : '';
+      const topic = $('postTopic') ? $('postTopic').value : '生活故事';
+      if (!text) {
+        showToast('先写一点内容再发布。');
+        return;
+      }
+      if (text.length < 6) {
+        showToast('内容太短了，写清楚一点更容易引起共鸣。');
+        return;
+      }
+      const author = state.user ? state.user.name : '新朋友';
+      state.posts.unshift({
+        author,
+        topic,
+        text,
+        song: '待创作的新歌',
+        time: '刚刚'
+      });
+      $('postText').value = '';
+      renderCommunity();
+      showToast('动态已发布到社区广场。');
+    }
+
+    function publishStoryToCommunity() {
+      const story = $('lifeStory') ? $('lifeStory').value.trim() : '';
+      if (!story) {
+        showToast('先写下你的生活故事。');
+        return;
+      }
+      if ($('postText')) $('postText').value = story;
+      publishPost();
+      showPage('community');
+    }
+
+    function collectConfig() {
+      return {
+        prompt: promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐',
+        lyrics: lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光',
+        style: styleEl.value,
+        usecase: usecaseEl.value,
+        voiceType: voiceTypeEl.value,
+        voiceIntensity: Number(voiceIntensityEl.value),
+        mood: state.selectedMood,
+        vocals: state.vocals,
+        duration: Number(durationEl.value)
+      };
+    }
+
+    function generate() {
+      if (!state.user) {
+        showToast('请先注册或登录，再开始生成歌曲。');
+        const email = $('authEmail');
+        if (email) email.focus();
+        return;
+      }
+      const config = collectConfig();
+      if (state.credits < 16) {
+        showToast('积分不足，正式版会跳转到套餐页。');
+        return;
+      }
+      state.credits -= 16;
+      $('credits').textContent = state.credits;
+      if (state.api.ready) {
+        generateWithRealApi(config);
+        return;
+      }
+      const tasks = [1, 2].map(variant => ({
+        id: crypto.randomUUID(),
+        title: titleFrom(config) + ' V' + variant,
+        status: '排队中',
+        progress: 0,
+        variant,
+        ...config
+      }));
+      state.queue.unshift(...tasks);
+      renderQueue();
+      showToast('已创建 2 个生成任务。');
+      tasks.forEach((task, index) => runTask(task, index));
+    }
+
+    async function generateWithRealApi(config) {
+      const task = {
+        id: crypto.randomUUID(),
+        title: titleFrom(config) + ' API',
+        status: '提交到真实模型',
+        progress: 4,
+        variant: 1,
+        ...config
+      };
+      state.queue.unshift(task);
+      renderQueue();
+      showToast('已提交到真实音乐生成 API。');
+
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'API 提交失败');
+        task.providerTaskId = data.id;
+        task.status = '模型生成中';
+        task.progress = 15;
+        renderQueue();
+        pollRealTask(task);
+      } catch (error) {
+        task.status = 'API 失败，切回演示生成';
+        task.progress = 100;
+        renderQueue();
+        showToast(error.message || '真实 API 调用失败，已使用演示引擎。');
+        setTimeout(() => {
+          state.queue = state.queue.filter(x => x.id !== task.id);
+          runTask({ ...task, id: crypto.randomUUID(), status: '演示生成', progress: 0 }, 0);
+        }, 700);
+      }
+    }
+
+    async function pollRealTask(task) {
+      let attempts = 0;
+      const timer = setInterval(async () => {
+        attempts += 1;
+        task.progress = Math.min(92, 15 + attempts * 6);
+        task.status = attempts < 4 ? '模型编曲中' : attempts < 10 ? '真人演唱合成中' : '等待音频导出';
+        renderQueue();
+
+        try {
+          const response = await fetch('/api/tasks/' + encodeURIComponent(task.providerTaskId));
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || '任务查询失败');
+          if (data.audioUrls && data.audioUrls.length) {
+            clearInterval(timer);
+            await addRemoteTracks(task, data.audioUrls);
+            state.queue = state.queue.filter(x => x.id !== task.id);
+            renderQueue();
+            showToast('真实模型歌曲已生成完成。');
+          }
+        } catch (error) {
+          if (attempts > 20) {
+            clearInterval(timer);
+            task.status = '查询超时';
+            renderQueue();
+            showToast(error.message || '真实 API 查询超时。');
+          }
+        }
+      }, 8000);
+    }
+
+    async function addRemoteTracks(task, urls) {
+      for (let i = 0; i < urls.length; i++) {
+        const audioUrl = urls[i];
+        const track = {
+          ...task,
+          id: crypto.randomUUID(),
+          title: task.title + ' V' + (i + 1),
+          seed: hashText(audioUrl),
+          samples: new Float32Array(900).map((_, x) => Math.sin(x / (5 + i)) * Math.sin(x / 31) * 0.7),
+          blob: null,
+          remoteUrl: audioUrl,
+          thumb: i % 2 === 0 ? 'linear-gradient(135deg,#0f766e,#f59e0b)' : 'linear-gradient(135deg,#2563eb,#dc2626)',
+          createdAt: new Date().toLocaleString('zh-CN', { hour12: false })
+        };
+        state.library.unshift(track);
+        setCurrent(track);
+      }
+      renderLibrary();
+    }
+
+    function runTask(task, index) {
+      const timer = setInterval(() => {
+        task.progress = Math.min(100, task.progress + 8 + Math.round(Math.random() * 12));
+        task.status = task.progress < 35 ? '分析需求' : task.progress < 72 ? '编曲生成' : task.progress < 100 ? '混音导出' : '完成';
+        renderQueue();
+        if (task.progress >= 100) {
+          clearInterval(timer);
+          const pcm = generatePcm(task);
+          const blob = encodeWav(pcm.samples, pcm.sampleRate);
+          const thumb = index % 2 === 0 ? 'linear-gradient(135deg,#0f766e,#f59e0b)' : 'linear-gradient(135deg,#2563eb,#dc2626)';
+          const track = {
+            ...task,
+            id: crypto.randomUUID(),
+            seed: pcm.seed,
+            samples: pcm.samples,
+            blob,
+            thumb,
+            createdAt: new Date().toLocaleString('zh-CN', { hour12: false })
+          };
+          state.library.unshift(track);
+          state.queue = state.queue.filter(x => x.id !== task.id);
+          setCurrent(track);
+          renderQueue();
+          renderLibrary();
+          showToast(track.title + ' 已生成完成。');
+        }
+      }, 360 + index * 90);
+    }
+
+    async function playCurrent() {
+      if (!state.audio) return;
+      if (state.audio.paused) {
+        try {
+          await state.audio.play();
+          playBtn.textContent = 'Ⅱ';
+        } catch (error) {
+          playBtn.textContent = '▶';
+          showToast('浏览器阻止了自动播放，请再点一次播放。');
+        }
+      } else {
+        state.audio.pause();
+        playBtn.textContent = '▶';
+      }
+    }
+
+    function downloadTrack(track) {
+      if (track.remoteUrl) {
+        window.open(track.remoteUrl, '_blank');
+        return;
+      }
+      const url = URL.createObjectURL(track.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = track.title.replace(/[\\/:*?"<>|]/g, '-') + '.wav';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1200);
+    }
+
+    function showLicense() {
+      if (!state.current) return;
+      showToast('授权证明：' + state.current.title + '，创作者版及以上套餐可商用。正式版会导出 PDF。');
+    }
+
+    document.querySelectorAll('.nav button').forEach(btn => btn.addEventListener('click', () => {
+      showPage(btn.dataset.jump);
+    }));
+
+    document.querySelectorAll('#moods .chip').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('#moods .chip').forEach(x => x.classList.remove('active'));
+      btn.classList.add('active');
+      state.selectedMood = btn.textContent.trim();
+    }));
+
+    $('vocalSwitch').addEventListener('click', () => {
+      state.vocals = !state.vocals;
+      $('vocalSwitch').classList.toggle('on', state.vocals);
+      $('vocalSwitch').setAttribute('aria-checked', String(state.vocals));
+    });
+
+    durationEl.addEventListener('input', () => {
+      durationValue.textContent = durationEl.value + ' 秒';
+      durationLabel.textContent = durationEl.value + 's';
+    });
+
+    voiceIntensityEl.addEventListener('input', () => {
+      $('voiceIntensityValue').textContent = voiceIntensityEl.value + '%';
+      $('voiceIntensityLabel').textContent = voiceIntensityEl.value + '%';
+    });
+
+    $('demoBtn').addEventListener('click', () => {
+      promptEl.value = '为夏季咖啡品牌广告生成 36 秒中文流行歌曲，清爽、明亮、有一句容易记住的副歌，适合小红书和抖音投放。';
+      lyricsEl.value = '阳光落在杯沿上\\n一口清爽慢慢发亮\\n今天的心情刚刚好\\n跟着风一起去远方';
+      styleEl.value = '中文流行';
+      usecaseEl.value = '品牌广告';
+      voiceTypeEl.value = '清亮女声';
+      voiceIntensityEl.value = 82;
+      $('voiceIntensityValue').textContent = '82%';
+      $('voiceIntensityLabel').textContent = '82%';
+      showToast('已填入示例需求。');
+    });
+
+    const templatePresets = {
+      brand: {
+        prompt: '为一个新茶饮品牌生成 30 秒广告歌，副歌简单上口，年轻、明亮、适合抖音投放。',
+        lyrics: '把夏天装进这一杯\\n轻轻一口就会发光\\n今天的快乐刚刚好\\n跟着节拍一起摇晃',
+        style: '中文流行',
+        usecase: '品牌广告',
+        voiceType: '清亮女声',
+        mood: '明亮',
+        duration: 32,
+        intensity: 84
+      },
+      city: {
+        prompt: '生成一首城市夜晚氛围的中文节奏布鲁斯，适合潮牌短片，低频舒服，男声有磁性。',
+        lyrics: '霓虹滑过车窗\\n夜色慢慢降落肩膀\\n不说话也能听见\\n心跳在城市里回响',
+        style: '节奏布鲁斯',
+        usecase: '短视频 BGM',
+        voiceType: '磁性男声',
+        mood: '高级',
+        duration: 42,
+        intensity: 76
+      },
+      game: {
+        prompt: '为科幻动作游戏 PV 生成循环主题音乐，电子、热血、节奏强，适合开场和战斗预告。',
+        lyrics: '',
+        style: '未来贝斯',
+        usecase: '游戏循环音乐',
+        voiceType: '多人合唱',
+        mood: '热血',
+        duration: 48,
+        intensity: 58
+      },
+      folk: {
+        prompt: '为旅行纪录片片尾生成温暖民谣歌曲，木吉他、轻鼓、多人合唱尾声，情绪治愈。',
+        lyrics: '风把路写得很长\\n山和海都在身旁\\n如果明天还要出发\\n就把歌声留在远方',
+        style: '民谣',
+        usecase: '短视频 BGM',
+        voiceType: '男女对唱',
+        mood: '温暖',
+        duration: 52,
+        intensity: 72
+      }
+    };
+
+    function applyPreset(preset) {
+      promptEl.value = preset.prompt;
+      lyricsEl.value = preset.lyrics;
+      styleEl.value = preset.style;
+      usecaseEl.value = preset.usecase;
+      voiceTypeEl.value = preset.voiceType;
+      durationEl.value = preset.duration;
+      durationValue.textContent = preset.duration + ' 秒';
+      durationLabel.textContent = preset.duration + 's';
+      voiceIntensityEl.value = preset.intensity;
+      $('voiceIntensityValue').textContent = preset.intensity + '%';
+      $('voiceIntensityLabel').textContent = preset.intensity + '%';
+      const moodButton = [...document.querySelectorAll('#moods .chip')].find(btn => btn.textContent.trim() === preset.mood);
+      if (moodButton) moodButton.click();
+      showPage('create');
+      showToast('已应用模板：' + preset.style + ' / ' + preset.voiceType);
+    }
+
+    document.querySelectorAll('[data-template]').forEach(button => {
+      button.addEventListener('click', () => applyPreset(templatePresets[button.dataset.template]));
+    });
+
+    const smartPromptBtn = $('smartPromptBtn');
+    const publishPostBtn = $('publishPostBtn');
+    const storyToPostBtn = $('storyToPostBtn');
+    const shareHelperBtn = $('shareHelperBtn');
+    if (smartPromptBtn) smartPromptBtn.addEventListener('click', smartGeneratePrompt);
+    if (publishPostBtn) publishPostBtn.addEventListener('click', publishPost);
+    if (storyToPostBtn) storyToPostBtn.addEventListener('click', publishStoryToCommunity);
+    if (shareHelperBtn) shareHelperBtn.addEventListener('click', shareHelperToCommunity);
+
+    $('generateBtn').addEventListener('click', generate);
+    $('generateTop').addEventListener('click', generate);
+    playBtn.addEventListener('click', playCurrent);
+    downloadBtn.addEventListener('click', () => state.current && downloadTrack(state.current));
+    licenseBtn.addEventListener('click', showLicense);
+
+    setupPageViews();
+    drawCover(42, 'Auraly AI');
+    drawWave(new Float32Array(900).map((_, i) => Math.sin(i / 6) * Math.sin(i / 43) * 0.7));
+    loadApiConfig();
+    loadCurrentUser();
+    bindAuthButtons();
+    bindProfileMenu();
+    renderProfileSummary();
+    renderQueue();
+    renderLibrary();
+    renderCommunity();
+  </script>
+</body>
+</html>
