@@ -131,7 +131,7 @@ function findAudioUrls(value, urls = new Set(), keyHint = '') {
   if (!value) return [...urls];
   if (typeof value === 'string') {
     const looksLikeAudioUrl = /^https?:\/\/.*\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
-    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|url|cdn)/i.test(keyHint);
+    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac)/i.test(keyHint);
     if (looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value))) urls.add(value);
     return [...urls];
   }
