@@ -1741,10 +1741,7 @@
         <button class="active" data-jump="create">创作</button>
         <button data-jump="library">作品库</button>
         <button data-jump="community">社区</button>
-        <button data-jump="life-song">生活写歌</button>
-        <button data-jump="cover-song">翻唱创作</button>
         <button data-jump="mv-maker">MV制作</button>
-        <button data-jump="rights">发现</button>
         <button data-jump="plans">套餐</button>
       </nav>
       <form class="auth-box" id="authBox">
@@ -1769,7 +1766,7 @@
       <header class="topbar">
         <div>
           <h1>创作一首歌</h1>
-          <p class="subhead">描述你想要的音乐，生成带歌词、人声、封面和多个版本的完整歌曲。</p>
+          <p class="subhead">上传采样或直接输入想法，选择风格和声音，一键生成歌曲。</p>
         </div>
         <div class="actions">
           <button class="btn" id="demoBtn">试试示例</button>
@@ -1810,21 +1807,22 @@
           </div>
           <div class="panel-body create-workbench">
             <div class="compose-main">
-              <div class="section-kicker"><span>Lyrics</span><span>先写词，再定风格</span></div>
+              <div class="section-kicker"><span>一键创作</span><span>可上传采样，也可直接写歌</span></div>
+              <div class="field">
+                <label for="prompt">关键词 / 创作想法</label>
+                <textarea id="prompt" placeholder="例如：送给妈妈的生日歌，温暖女声，歌词朴实，像儿女认真说心里话。也可以写：参考我上传的采样，做一首相似氛围的新歌。"></textarea>
+              </div>
               <div class="field lyrics-large">
                 <label for="lyrics">歌词</label>
-                <textarea id="lyrics" placeholder="写下你想唱出来的歌词。建议用主歌、副歌分段，例如：&#10;[主歌]&#10;我把故事轻轻唱给你听&#10;那些没说出口的心情&#10;&#10;[副歌]&#10;我要把这首歌唱给你听&#10;用最真实的声音靠近你的心"></textarea>
-              </div>
-              <div class="field">
-                <label for="prompt">创作提示词</label>
-                <textarea id="prompt" placeholder="一句话说清楚你想要的歌曲：送给谁、什么情绪、什么场景、男声还是女声、希望像什么风格。"></textarea>
+                <textarea id="lyrics" placeholder="可选。想让歌曲唱具体内容，就把歌词写在这里；不写时系统会根据关键词自动补歌词。"></textarea>
               </div>
               <div class="reference-card">
-                <div class="section-kicker"><span>Reference</span><span>可选</span></div>
-                <div class="upload-zone compact-upload">
-                  <button class="btn" type="button" data-jump="cover-song">上传参考音频</button>
-                  <strong>想参考一首歌的氛围，就去“翻唱创作”上传音频</strong>
-                  <small>参考音频只用于提取氛围和结构，正式生成仍会创作全新歌曲。</small>
+                <div class="section-kicker"><span>参考采样</span><span>可选</span></div>
+                <div class="upload-zone compact-upload" id="coverUploadZone">
+                  <input id="coverAudio" type="file" accept="audio/*" hidden>
+                  <button class="btn" id="coverPickBtn" type="button">上传音频</button>
+                  <strong id="coverFileName">不上传也可以直接创作</strong>
+                  <small>支持 MP3 / WAV / M4A。仅参考氛围，不复制原曲旋律和真实歌手声音。</small>
                 </div>
               </div>
             </div>
@@ -1852,7 +1850,7 @@
                   <option>古典跨界</option>
                 </select>
               </div>
-              <div class="field">
+              <div class="field compact-field">
                 <label for="usecase">用途</label>
                 <select id="usecase">
                   <option>生活写歌</option>
@@ -1929,7 +1927,7 @@
                 </div>
               </div>
 
-              <button class="btn accent" id="generateBtn" style="width:100%">生成歌曲</button>
+              <button class="btn accent" id="generateBtn" style="width:100%">开始创作</button>
             </div>
           </div>
         </div>
@@ -2036,7 +2034,7 @@
         </div>
       </section>
 
-      <section class="panel" id="cover-song">
+      <section class="panel" id="cover-song" hidden>
         <div class="panel-head">
           <h2>翻唱创作</h2>
           <span class="subhead">上传你有权使用的音频，提取情绪、结构和风格，生成新的相似歌曲与歌词。</span>
@@ -2044,10 +2042,10 @@
         <div class="panel-body cover-layout cover-create-layout">
           <div class="cover-workbench create-workbench">
             <div class="compose-main">
-            <div class="upload-zone compact-upload" id="coverUploadZone">
-              <input id="coverAudio" type="file" accept="audio/*" hidden>
-              <button class="btn primary" id="coverPickBtn" type="button">上传参考音频</button>
-              <strong id="coverFileName">支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟</strong>
+            <div class="upload-zone compact-upload">
+              <input type="file" accept="audio/*" hidden>
+              <button class="btn primary" type="button">上传参考音频</button>
+              <strong>支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟</strong>
               <small>请只上传你本人原创、已获授权或可合法改编的音频。</small>
             </div>
 
@@ -2078,8 +2076,8 @@
                 </select>
               </div>
               <div class="field">
-                <label for="coverVoice">演唱声音</label>
-                <select id="coverVoice">
+                <label>演唱声音</label>
+                <select>
                   <option>温柔女声</option>
                   <option>清亮女声</option>
                   <option>磁性男声</option>
@@ -2092,7 +2090,7 @@
 
             <div class="field">
               <label>声音选择</label>
-              <div class="voice-segment" id="coverVoiceQuick">
+              <div class="voice-segment">
                 <button class="voice-chip active" type="button" data-cover-voice="温柔女声">女生</button>
                 <button class="voice-chip" type="button" data-cover-voice="磁性男声">男生</button>
                 <button class="voice-chip" type="button" data-cover-voice="男女对唱">对唱</button>
@@ -2114,25 +2112,25 @@
                 </select>
               </div>
               <div class="field">
-                <label for="coverSimilarity">参考相似度 <span id="coverSimilarityValue">65%</span></label>
+                <label>参考相似度 <span>65%</span></label>
                 <div class="range-row">
-                  <input id="coverSimilarity" type="range" min="20" max="85" value="65">
+                  <input type="range" min="20" max="85" value="65">
                   <span>越高越接近参考氛围</span>
                 </div>
               </div>
             </div>
 
             <div class="field">
-              <label for="coverStyleInfluence">风格影响程度 <span id="coverStyleInfluenceValue">70%</span></label>
+              <label>风格影响程度 <span>70%</span></label>
               <div class="range-row">
-                <input id="coverStyleInfluence" type="range" min="10" max="100" value="70">
+                <input type="range" min="10" max="100" value="70">
                 <span>决定目标风格权重</span>
               </div>
             </div>
 
             <div class="actions">
-              <button class="btn accent" id="coverGenerateBtn" type="button">智能生成翻唱方案</button>
-              <button class="btn" id="coverUsePromptBtn" type="button">发送到创作页</button>
+              <button class="btn accent" type="button">智能生成翻唱方案</button>
+              <button class="btn" type="button">发送到创作页</button>
             </div>
             </div>
           </div>
@@ -2514,9 +2512,6 @@
       const lifeView = document.createElement('div');
       lifeView.className = 'page-view';
       lifeView.dataset.pageView = 'life-song';
-      const coverView = document.createElement('div');
-      coverView.className = 'page-view';
-      coverView.dataset.pageView = 'cover-song';
       const mvView = document.createElement('div');
       mvView.className = 'page-view';
       mvView.dataset.pageView = 'mv-maker';
@@ -2560,8 +2555,7 @@
       lifeView.appendChild(pageTitle('生活写歌', '不会写词也没关系，写下真实经历，系统帮你整理成歌曲提示词。'));
       if (life) lifeView.appendChild(life);
 
-      coverView.appendChild(pageTitle('翻唱创作', '上传参考音频，生成相似氛围的新歌曲方案、歌词和创作提示词。'));
-      if (cover) coverView.appendChild(cover);
+      if (cover) cover.remove();
 
       mvView.appendChild(pageTitle('MV制作', '用歌曲或上传音频生成 MV 分镜、字幕脚本和视频风格方案。'));
       if (mvMaker) mvView.appendChild(mvMaker);
@@ -2575,7 +2569,7 @@
       if (plans) plansView.appendChild(plans);
 
       main.innerHTML = '';
-      [createView, libraryView, communityView, lifeView, coverView, mvView, discoverView, plansView].forEach(view => main.appendChild(view));
+      [createView, libraryView, communityView, lifeView, mvView, discoverView, plansView].forEach(view => main.appendChild(view));
     }
 
     function showPage(page) {
@@ -3402,8 +3396,11 @@
     }
 
     function collectConfig() {
+      const sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
+      const sampleHint = sampleFile ? `参考用户上传的采样《${sampleFile.name.replace(/\.[^.]+$/, '')}》的情绪、速度和整体氛围，但不要复制原曲旋律，不要模仿真实歌手。` : '';
+      const userPrompt = promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐';
       return {
-        prompt: promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐',
+        prompt: sampleHint ? `${userPrompt}。${sampleHint}` : userPrompt,
         lyrics: lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光',
         style: styleEl.value,
         styleInfluence: styleInfluenceEl ? Number(styleInfluenceEl.value) : 70,
@@ -3412,7 +3409,8 @@
         voiceIntensity: Number(voiceIntensityEl.value),
         mood: state.selectedMood,
         vocals: state.vocals,
-        duration: Number(durationEl.value)
+        duration: Number(durationEl.value),
+        sampleName: sampleFile ? sampleFile.name : ''
       };
     }
 
@@ -3755,8 +3753,8 @@
     if (coverPickBtn && coverAudio) coverPickBtn.addEventListener('click', () => coverAudio.click());
     if (coverAudio) coverAudio.addEventListener('change', () => {
       const file = coverAudio.files && coverAudio.files[0];
-      if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟';
-      if (file) showToast('参考音频已上传，可生成翻唱方案。');
+      if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '不上传也可以直接创作';
+      if (file) showToast('参考采样已添加，填写关键词后可直接创作。');
     });
     if (coverSimilarity) coverSimilarity.addEventListener('input', () => {
       if ($('coverSimilarityValue')) $('coverSimilarityValue').textContent = coverSimilarity.value + '%';
