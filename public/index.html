@@ -2497,6 +2497,11 @@
       showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
     }
 
+    function warnIfOpenedAsFile() {
+      if (location.protocol !== 'file:') return;
+      showToast('请用线上网址测试生成：shenghuoji-ai-music-production.up.railway.app');
+    }
+
     function setupPageViews() {
       const main = document.querySelector('main');
       if (!main || document.querySelector('[data-page-view="create"]')) return;
@@ -3826,6 +3831,7 @@
     setupPageViews();
     drawCover(42, 'Auraly AI');
     drawWave(new Float32Array(900).map((_, i) => Math.sin(i / 6) * Math.sin(i / 43) * 0.7));
+    warnIfOpenedAsFile();
     loadApiConfig();
     loadCurrentUser();
     bindAuthButtons();

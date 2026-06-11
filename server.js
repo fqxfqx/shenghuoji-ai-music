@@ -193,6 +193,20 @@ function musicProvider() {
   return 'demo';
 }
 
+function cleanSecret(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+}
+
+function murekaAuthHeader() {
+  const key = cleanSecret(process.env.MUREKA_API_KEY);
+  if (!key) throw new Error('MUREKA_API_KEY is missing.');
+  return `Bearer ${key}`;
+}
+
 function findAudioUrls(value) {
   const candidates = [];
   collectAudioUrlCandidates(value, candidates);
@@ -385,7 +399,6 @@ async function callMiniMax(payload) {
 }
 
 async function callMureka(payload, options = {}) {
-  if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
   const model = process.env.MUREKA_MODEL || 'auto';
   const lyrics = normalizeLyrics(payload);
   const body = {
@@ -398,7 +411,7 @@ async function callMureka(payload, options = {}) {
   const response = await fetch('https://api.mureka.ai/v1/song/generate', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
+      Authorization: murekaAuthHeader(),
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(body)
@@ -435,7 +448,6 @@ function murekaError(data, fallback) {
 }
 
 async function uploadMurekaFile(file, purpose) {
-  if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
   const filename = String(file?.filename || '').trim();
   if (!/\.(mp3|m4a)$/i.test(filename)) {
     throw new Error('Mureka 参考采样目前只支持 MP3 / M4A，请先把音频转成 MP3 或 M4A 后再上传。');
@@ -447,7 +459,7 @@ async function uploadMurekaFile(file, purpose) {
   const response = await fetch('https://api.mureka.ai/v1/files/upload', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`
+      Authorization: murekaAuthHeader()
     },
     body: form
   });
@@ -467,11 +479,10 @@ async function callMurekaWithReference(payload, sampleFile) {
 }
 
 async function queryMurekaTask(providerTaskId) {
-  if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
   const response = await fetch(`https://api.mureka.ai/v1/song/query/${encodeURIComponent(providerTaskId)}`, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
+      Authorization: murekaAuthHeader(),
       'Content-Type': 'application/json'
     }
   });
