@@ -13,12 +13,17 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SONGS_FILE = path.join(DATA_DIR, 'songs.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
-for (const file of [USERS_FILE, SONGS_FILE, POSTS_FILE]) {
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const VERIFY_CODES_FILE = path.join(DATA_DIR, 'verify-codes.json');
+for (const file of [USERS_FILE, SONGS_FILE, POSTS_FILE, SESSIONS_FILE, VERIFY_CODES_FILE]) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, '[]', 'utf8');
 }
 
 loadDotEnv(path.join(ROOT, '.env'));
-const sessions = new Map();
+const SESSION_AGE_MS = 30 * 24 * 3600 * 1000;
+const sessions = new Map(readJson(SESSIONS_FILE)
+  .filter(session => session.token && session.userId && (!session.expiresAt || new Date(session.expiresAt).getTime() > Date.now()))
+  .map(session => [session.token, session]));
 const tasks = new Map();
 
 function loadDotEnv(file) {
@@ -153,7 +158,7 @@ function parseCookies(req) {
 }
 
 function setSessionCookie(res, token) {
-  res.setHeader('Set-Cookie', `shenghuoji_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${14 * 24 * 3600}`);
+  res.setHeader('Set-Cookie', `shenghuoji_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${30 * 24 * 3600}`);
 }
 
 function clearSessionCookie(res) {
@@ -162,7 +167,14 @@ function clearSessionCookie(res) {
 
 function publicUser(user) {
   if (!user) return null;
-  return { id: user.id, email: user.email, name: user.name, credits: user.credits || 0 };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    credits: user.credits || 0,
+    emailVerified: !!user.emailVerified,
+    createdAt: user.createdAt || null
+  };
 }
 
 function hashPassword(password, salt) {
@@ -173,8 +185,76 @@ function currentUser(req) {
   const token = parseCookies(req).shenghuoji_session;
   if (!token || !sessions.has(token)) return null;
   const session = sessions.get(token);
+  if (session.expiresAt && new Date(session.expiresAt).getTime() <= Date.now()) {
+    sessions.delete(token);
+    saveSessions();
+    return null;
+  }
   const users = readJson(USERS_FILE);
   return users.find(user => user.id === session.userId) || null;
+}
+
+function saveSessions() {
+  writeJson(SESSIONS_FILE, [...sessions.values()]);
+}
+
+function createSession(res, userId) {
+  const token = crypto.randomBytes(24).toString('hex');
+  sessions.set(token, {
+    token,
+    userId,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + SESSION_AGE_MS).toISOString()
+  });
+  saveSessions();
+  setSessionCookie(res, token);
+}
+
+function deleteSession(token) {
+  if (!token) return;
+  sessions.delete(token);
+  saveSessions();
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function assertEmail(email) {
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('请输入有效邮箱。');
+}
+
+function readCodes() {
+  const now = Date.now();
+  const codes = readJson(VERIFY_CODES_FILE).filter(item => item.expiresAt && new Date(item.expiresAt).getTime() > now);
+  writeJson(VERIFY_CODES_FILE, codes);
+  return codes;
+}
+
+function createVerifyCode(email, purpose) {
+  const codes = readCodes().filter(item => !(item.email === email && item.purpose === purpose));
+  const code = String(crypto.randomInt(100000, 999999));
+  codes.push({
+    email,
+    purpose,
+    codeHash: hashPassword(code, 'verify-code'),
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+  });
+  writeJson(VERIFY_CODES_FILE, codes);
+  return code;
+}
+
+function consumeVerifyCode(email, purpose, code) {
+  const cleanCode = String(code || '').trim();
+  const codes = readCodes();
+  const index = codes.findIndex(item =>
+    item.email === email
+    && item.purpose === purpose
+    && item.codeHash === hashPassword(cleanCode, 'verify-code'));
+  if (index < 0) throw new Error('验证码不正确或已过期。');
+  codes.splice(index, 1);
+  writeJson(VERIFY_CODES_FILE, codes);
 }
 
 function requireUser(req) {
@@ -621,15 +701,35 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { user: publicUser(currentUser(req)) });
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {
+    const body = await readBody(req);
+    const email = normalizeEmail(body.email);
+    const purpose = String(body.purpose || 'register').trim();
+    assertEmail(email);
+    if (!['register', 'reset'].includes(purpose)) throw new Error('验证码用途无效。');
+    const users = readJson(USERS_FILE);
+    const exists = users.some(user => user.email === email);
+    if (purpose === 'register' && exists) throw new Error('该邮箱已注册，请直接登录。');
+    if (purpose === 'reset' && !exists) throw new Error('该邮箱还没有注册。');
+    const code = createVerifyCode(email, purpose);
+    return sendJson(res, 200, {
+      ok: true,
+      // 当前未配置真实邮件服务，先返回测试验证码；接入邮件服务后删除 devCode。
+      devCode: code,
+      message: '验证码已生成，10 分钟内有效。'
+    });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/auth/register') {
     const body = await readBody(req);
-    const email = String(body.email || '').trim().toLowerCase();
+    const email = normalizeEmail(body.email);
     const password = String(body.password || '');
     const name = String(body.name || '').trim() || email.split('@')[0];
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Please enter a valid email.');
-    if (password.length < 6) throw new Error('Password must be at least 6 characters.');
+    assertEmail(email);
+    if (password.length < 6) throw new Error('密码至少 6 位。');
+    consumeVerifyCode(email, 'register', body.code);
     const users = readJson(USERS_FILE);
-    if (users.some(user => user.email === email)) throw new Error('Email already registered.');
+    if (users.some(user => user.email === email)) throw new Error('该邮箱已注册。');
     const salt = crypto.randomBytes(16).toString('base64');
     const user = {
       id: crypto.randomUUID(),
@@ -638,31 +738,61 @@ async function handleApi(req, res, url) {
       salt,
       passwordHash: hashPassword(password, salt),
       credits: 40,
+      emailVerified: true,
       createdAt: new Date().toISOString()
     };
     users.push(user);
     writeJson(USERS_FILE, users);
-    const token = crypto.randomBytes(24).toString('hex');
-    sessions.set(token, { userId: user.id, createdAt: new Date().toISOString() });
-    setSessionCookie(res, token);
+    createSession(res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/login') {
     const body = await readBody(req);
-    const email = String(body.email || '').trim().toLowerCase();
+    const email = normalizeEmail(body.email);
     const password = String(body.password || '');
     const user = readJson(USERS_FILE).find(item => item.email === email);
-    if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('Invalid email or password.');
-    const token = crypto.randomBytes(24).toString('hex');
-    sessions.set(token, { userId: user.id, createdAt: new Date().toISOString() });
-    setSessionCookie(res, token);
+    if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('邮箱或密码错误。');
+    createSession(res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/reset-password') {
+    const body = await readBody(req);
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || '');
+    assertEmail(email);
+    if (password.length < 6) throw new Error('新密码至少 6 位。');
+    consumeVerifyCode(email, 'reset', body.code);
+    const users = readJson(USERS_FILE);
+    const user = users.find(item => item.email === email);
+    if (!user) throw new Error('该邮箱还没有注册。');
+    user.salt = crypto.randomBytes(16).toString('base64');
+    user.passwordHash = hashPassword(password, user.salt);
+    user.updatedAt = new Date().toISOString();
+    writeJson(USERS_FILE, users);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/change-password') {
+    const user = requireUser(req);
+    const body = await readBody(req);
+    const oldPassword = String(body.oldPassword || '');
+    const newPassword = String(body.newPassword || '');
+    if (newPassword.length < 6) throw new Error('新密码至少 6 位。');
+    const users = readJson(USERS_FILE);
+    const stored = users.find(item => item.id === user.id);
+    if (!stored || hashPassword(oldPassword, stored.salt) !== stored.passwordHash) throw new Error('旧密码不正确。');
+    stored.salt = crypto.randomBytes(16).toString('base64');
+    stored.passwordHash = hashPassword(newPassword, stored.salt);
+    stored.updatedAt = new Date().toISOString();
+    writeJson(USERS_FILE, users);
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
     const token = parseCookies(req).shenghuoji_session;
-    if (token) sessions.delete(token);
+    deleteSession(token);
     clearSessionCookie(res);
     return sendJson(res, 200, { ok: true });
   }
