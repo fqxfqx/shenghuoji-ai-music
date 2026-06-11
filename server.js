@@ -25,6 +25,20 @@ const sessions = new Map(readJson(SESSIONS_FILE)
   .filter(session => session.token && session.userId && (!session.expiresAt || new Date(session.expiresAt).getTime() > Date.now()))
   .map(session => [session.token, session]));
 const tasks = new Map();
+let pgPool = null;
+let dbReady = false;
+let dbInitPromise = null;
+if (process.env.DATABASE_URL) {
+  try {
+    const { Pool } = require('pg');
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false }
+    });
+  } catch (error) {
+    console.warn('PostgreSQL driver unavailable; falling back to JSON storage.');
+  }
+}
 
 function loadDotEnv(file) {
   if (!fs.existsSync(file)) return;
@@ -48,6 +62,139 @@ function readJson(file) {
 
 function writeJson(file, value) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8');
+}
+
+async function initDb() {
+  if (!pgPool) return false;
+  if (dbReady) return true;
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = (async () => {
+    await pgPool.query(`
+      create table if not exists users (
+        id text primary key,
+        email text unique not null,
+        name text not null,
+        salt text not null,
+        password_hash text not null,
+        credits integer not null default 0,
+        email_verified boolean not null default false,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz
+      );
+      create table if not exists sessions (
+        token text primary key,
+        user_id text not null references users(id) on delete cascade,
+        created_at timestamptz not null default now(),
+        expires_at timestamptz not null
+      );
+      create table if not exists verify_codes (
+        id bigserial primary key,
+        email text not null,
+        purpose text not null,
+        code_hash text not null,
+        created_at timestamptz not null default now(),
+        expires_at timestamptz not null
+      );
+      create table if not exists songs (
+        id text primary key,
+        user_id text not null references users(id) on delete cascade,
+        task_id text,
+        title text not null,
+        provider text not null,
+        audio_urls jsonb not null default '[]'::jsonb,
+        payload jsonb not null default '{}'::jsonb,
+        created_at timestamptz not null default now()
+      );
+    `);
+    await migrateJsonToDb();
+    dbReady = true;
+    return true;
+  })().catch(error => {
+    console.warn('PostgreSQL init failed; falling back to JSON storage.', error.message);
+    pgPool = null;
+    dbReady = false;
+    return false;
+  });
+  return dbInitPromise;
+}
+
+function rowToUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    salt: row.salt,
+    passwordHash: row.password_hash,
+    credits: row.credits,
+    emailVerified: row.email_verified,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null
+  };
+}
+
+function rowToSong(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    taskId: row.task_id,
+    title: row.title,
+    provider: row.provider,
+    audioUrls: row.audio_urls || [],
+    payload: row.payload || {},
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null
+  };
+}
+
+async function migrateJsonToDb() {
+  if (!pgPool) return;
+  const userCount = await pgPool.query('select count(*)::int as count from users');
+  if (Number(userCount.rows[0]?.count || 0) === 0) {
+    const users = readJson(USERS_FILE);
+    for (const user of users) {
+      if (!user.id || !user.email || !user.passwordHash || !user.salt) continue;
+      await pgPool.query(
+        `insert into users (id, email, name, salt, password_hash, credits, email_verified, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, coalesce($8::timestamptz, now()), $9::timestamptz)
+         on conflict (id) do nothing`,
+        [
+          user.id,
+          user.email,
+          user.name || user.email.split('@')[0],
+          user.salt,
+          user.passwordHash,
+          Number(user.credits || 0),
+          !!user.emailVerified,
+          user.createdAt || null,
+          user.updatedAt || null
+        ]
+      );
+    }
+  }
+
+  const songCount = await pgPool.query('select count(*)::int as count from songs');
+  if (Number(songCount.rows[0]?.count || 0) === 0) {
+    const songs = readJson(SONGS_FILE);
+    for (const song of songs) {
+      if (!song.id || !song.userId) continue;
+      await pgPool.query(
+        `insert into songs (id, user_id, task_id, title, provider, audio_urls, payload, created_at)
+         values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, coalesce($8::timestamptz, now()))
+         on conflict (id) do nothing`,
+        [
+          song.id,
+          song.userId,
+          song.taskId || null,
+          song.title || 'AI Song',
+          song.provider || 'unknown',
+          JSON.stringify(song.audioUrls || []),
+          JSON.stringify(song.payload || {}),
+          song.createdAt || null
+        ]
+      ).catch(() => null);
+    }
+  }
 }
 
 function sendJson(res, status, value) {
@@ -181,37 +328,108 @@ function hashPassword(password, salt) {
   return crypto.createHash('sha256').update(`${salt}:${password}`).digest('base64');
 }
 
-function currentUser(req) {
+async function findUserByEmail(email) {
+  if (await initDb()) {
+    const result = await pgPool.query('select * from users where email = $1 limit 1', [email]);
+    return rowToUser(result.rows[0]);
+  }
+  return readJson(USERS_FILE).find(user => user.email === email) || null;
+}
+
+async function findUserById(id) {
+  if (await initDb()) {
+    const result = await pgPool.query('select * from users where id = $1 limit 1', [id]);
+    return rowToUser(result.rows[0]);
+  }
+  return readJson(USERS_FILE).find(user => user.id === id) || null;
+}
+
+async function createUser(user) {
+  if (await initDb()) {
+    await pgPool.query(
+      `insert into users (id, email, name, salt, password_hash, credits, email_verified, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)`,
+      [user.id, user.email, user.name, user.salt, user.passwordHash, user.credits || 0, !!user.emailVerified, user.createdAt]
+    );
+    return user;
+  }
+  const users = readJson(USERS_FILE);
+  users.push(user);
+  writeJson(USERS_FILE, users);
+  return user;
+}
+
+async function updateUserPassword(userId, salt, passwordHash) {
+  const updatedAt = new Date().toISOString();
+  if (await initDb()) {
+    await pgPool.query(
+      'update users set salt = $1, password_hash = $2, updated_at = $3::timestamptz where id = $4',
+      [salt, passwordHash, updatedAt, userId]
+    );
+    return;
+  }
+  const users = readJson(USERS_FILE);
+  const user = users.find(item => item.id === userId);
+  if (!user) return;
+  user.salt = salt;
+  user.passwordHash = passwordHash;
+  user.updatedAt = updatedAt;
+  writeJson(USERS_FILE, users);
+}
+
+async function currentUser(req) {
   const token = parseCookies(req).shenghuoji_session;
-  if (!token || !sessions.has(token)) return null;
+  if (!token) return null;
+  if (await initDb()) {
+    const result = await pgPool.query(
+      `select u.* from sessions s
+       join users u on u.id = s.user_id
+       where s.token = $1 and s.expires_at > now()
+       limit 1`,
+      [token]
+    );
+    return rowToUser(result.rows[0]);
+  }
+  if (!sessions.has(token)) return null;
   const session = sessions.get(token);
   if (session.expiresAt && new Date(session.expiresAt).getTime() <= Date.now()) {
     sessions.delete(token);
     saveSessions();
     return null;
   }
-  const users = readJson(USERS_FILE);
-  return users.find(user => user.id === session.userId) || null;
+  return findUserById(session.userId);
 }
 
 function saveSessions() {
   writeJson(SESSIONS_FILE, [...sessions.values()]);
 }
 
-function createSession(res, userId) {
+async function createSession(res, userId) {
   const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, {
+  const session = {
     token,
     userId,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + SESSION_AGE_MS).toISOString()
-  });
+  };
+  if (await initDb()) {
+    await pgPool.query(
+      `insert into sessions (token, user_id, created_at, expires_at)
+       values ($1, $2, $3::timestamptz, $4::timestamptz)`,
+      [session.token, session.userId, session.createdAt, session.expiresAt]
+    );
+  } else {
+    sessions.set(token, session);
+  }
   saveSessions();
   setSessionCookie(res, token);
 }
 
-function deleteSession(token) {
+async function deleteSession(token) {
   if (!token) return;
+  if (await initDb()) {
+    await pgPool.query('delete from sessions where token = $1', [token]);
+  }
   sessions.delete(token);
   saveSessions();
 }
@@ -224,30 +442,67 @@ function assertEmail(email) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('请输入有效邮箱。');
 }
 
-function readCodes() {
+async function readCodes() {
   const now = Date.now();
+  if (await initDb()) {
+    await pgPool.query('delete from verify_codes where expires_at <= now()');
+    const result = await pgPool.query('select * from verify_codes');
+    return result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      purpose: row.purpose,
+      codeHash: row.code_hash,
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+      expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null
+    }));
+  }
   const codes = readJson(VERIFY_CODES_FILE).filter(item => item.expiresAt && new Date(item.expiresAt).getTime() > now);
   writeJson(VERIFY_CODES_FILE, codes);
   return codes;
 }
 
-function createVerifyCode(email, purpose) {
-  const codes = readCodes().filter(item => !(item.email === email && item.purpose === purpose));
+async function createVerifyCode(email, purpose) {
   const code = String(crypto.randomInt(100000, 999999));
-  codes.push({
+  const item = {
     email,
     purpose,
     codeHash: hashPassword(code, 'verify-code'),
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
-  });
+  };
+  if (await initDb()) {
+    await pgPool.query('delete from verify_codes where email = $1 and purpose = $2', [email, purpose]);
+    await pgPool.query(
+      `insert into verify_codes (email, purpose, code_hash, created_at, expires_at)
+       values ($1, $2, $3, $4::timestamptz, $5::timestamptz)`,
+      [item.email, item.purpose, item.codeHash, item.createdAt, item.expiresAt]
+    );
+    return code;
+  }
+  const codes = (await readCodes()).filter(existing => !(existing.email === email && existing.purpose === purpose));
+  codes.push(item);
   writeJson(VERIFY_CODES_FILE, codes);
   return code;
 }
 
-function consumeVerifyCode(email, purpose, code) {
+async function consumeVerifyCode(email, purpose, code) {
   const cleanCode = String(code || '').trim();
-  const codes = readCodes();
+  if (await initDb()) {
+    const result = await pgPool.query(
+      `delete from verify_codes
+       where id in (
+         select id from verify_codes
+         where email = $1 and purpose = $2 and code_hash = $3 and expires_at > now()
+         order by created_at desc
+         limit 1
+       )
+       returning id`,
+      [email, purpose, hashPassword(cleanCode, 'verify-code')]
+    );
+    if (!result.rowCount) throw new Error('Invalid or expired verification code.');
+    return;
+  }
+  const codes = await readCodes();
   const index = codes.findIndex(item =>
     item.email === email
     && item.purpose === purpose
@@ -257,8 +512,8 @@ function consumeVerifyCode(email, purpose, code) {
   writeJson(VERIFY_CODES_FILE, codes);
 }
 
-function requireUser(req) {
-  const user = currentUser(req);
+async function requireUser(req) {
+  const user = await currentUser(req);
   if (!user) {
     const error = new Error('Please login first.');
     error.status = 401;
@@ -462,10 +717,9 @@ function buildMurekaPrompt(payload) {
   ].join(', ');
 }
 
-function saveGeneratedSong(task) {
+async function saveGeneratedSong(task) {
   if (!task.audioUrls?.length || task.saved) return;
-  const songs = readJson(SONGS_FILE);
-  songs.push({
+  const song = {
     id: crypto.randomUUID(),
     userId: task.userId,
     taskId: task.id,
@@ -474,9 +728,43 @@ function saveGeneratedSong(task) {
     audioUrls: task.audioUrls,
     payload: task.payload,
     createdAt: new Date().toISOString()
-  });
+  };
+  if (await initDb()) {
+    await pgPool.query(
+      `insert into songs (id, user_id, task_id, title, provider, audio_urls, payload, created_at)
+       values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::timestamptz)
+       on conflict (id) do nothing`,
+      [
+        song.id,
+        song.userId,
+        song.taskId,
+        song.title,
+        song.provider,
+        JSON.stringify(song.audioUrls || []),
+        JSON.stringify(song.payload || {}),
+        song.createdAt
+      ]
+    );
+    task.saved = true;
+    return;
+  }
+  const songs = readJson(SONGS_FILE);
+  songs.push(song);
   writeJson(SONGS_FILE, songs);
   task.saved = true;
+}
+
+async function listUserSongs(userId) {
+  if (await initDb()) {
+    const result = await pgPool.query(
+      'select * from songs where user_id = $1 order by created_at desc',
+      [userId]
+    );
+    return result.rows.map(rowToSong);
+  }
+  return readJson(SONGS_FILE)
+    .filter(song => song.userId === userId)
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 async function callOpenRouter(payload) {
@@ -663,9 +951,12 @@ async function checkMurekaAccount() {
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/config') {
     const provider = musicProvider();
+    const databaseConnected = await initDb();
     return sendJson(res, 200, {
       provider,
       ready: provider !== 'demo',
+      databaseReady: databaseConnected,
+      databaseProvider: databaseConnected ? 'postgresql' : 'json-file',
       textModelReady: !!process.env.OPENROUTER_API_KEY,
       textModelProvider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'local',
       coverReady: !!process.env.COVER_API_KEY,
@@ -698,7 +989,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/auth/me') {
-    return sendJson(res, 200, { user: publicUser(currentUser(req)) });
+    return sendJson(res, 200, { user: publicUser(await currentUser(req)) });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {
@@ -707,11 +998,10 @@ async function handleApi(req, res, url) {
     const purpose = String(body.purpose || 'register').trim();
     assertEmail(email);
     if (!['register', 'reset'].includes(purpose)) throw new Error('验证码用途无效。');
-    const users = readJson(USERS_FILE);
-    const exists = users.some(user => user.email === email);
+    const exists = !!(await findUserByEmail(email));
     if (purpose === 'register' && exists) throw new Error('该邮箱已注册，请直接登录。');
     if (purpose === 'reset' && !exists) throw new Error('该邮箱还没有注册。');
-    const code = createVerifyCode(email, purpose);
+    const code = await createVerifyCode(email, purpose);
     return sendJson(res, 200, {
       ok: true,
       // 当前未配置真实邮件服务，先返回测试验证码；接入邮件服务后删除 devCode。
@@ -727,9 +1017,8 @@ async function handleApi(req, res, url) {
     const name = String(body.name || '').trim() || email.split('@')[0];
     assertEmail(email);
     if (password.length < 6) throw new Error('密码至少 6 位。');
-    consumeVerifyCode(email, 'register', body.code);
-    const users = readJson(USERS_FILE);
-    if (users.some(user => user.email === email)) throw new Error('该邮箱已注册。');
+    await consumeVerifyCode(email, 'register', body.code);
+    if (await findUserByEmail(email)) throw new Error('该邮箱已注册。');
     const salt = crypto.randomBytes(16).toString('base64');
     const user = {
       id: crypto.randomUUID(),
@@ -741,9 +1030,8 @@ async function handleApi(req, res, url) {
       emailVerified: true,
       createdAt: new Date().toISOString()
     };
-    users.push(user);
-    writeJson(USERS_FILE, users);
-    createSession(res, user.id);
+    await createUser(user);
+    await createSession(res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
 
@@ -751,9 +1039,9 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const email = normalizeEmail(body.email);
     const password = String(body.password || '');
-    const user = readJson(USERS_FILE).find(item => item.email === email);
+    const user = await findUserByEmail(email);
     if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('邮箱或密码错误。');
-    createSession(res, user.id);
+    await createSession(res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
 
@@ -763,48 +1051,42 @@ async function handleApi(req, res, url) {
     const password = String(body.password || '');
     assertEmail(email);
     if (password.length < 6) throw new Error('新密码至少 6 位。');
-    consumeVerifyCode(email, 'reset', body.code);
-    const users = readJson(USERS_FILE);
-    const user = users.find(item => item.email === email);
+    await consumeVerifyCode(email, 'reset', body.code);
+    const user = await findUserByEmail(email);
     if (!user) throw new Error('该邮箱还没有注册。');
-    user.salt = crypto.randomBytes(16).toString('base64');
-    user.passwordHash = hashPassword(password, user.salt);
-    user.updatedAt = new Date().toISOString();
-    writeJson(USERS_FILE, users);
+    const salt = crypto.randomBytes(16).toString('base64');
+    await updateUserPassword(user.id, salt, hashPassword(password, salt));
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/change-password') {
-    const user = requireUser(req);
+    const user = await requireUser(req);
     const body = await readBody(req);
     const oldPassword = String(body.oldPassword || '');
     const newPassword = String(body.newPassword || '');
     if (newPassword.length < 6) throw new Error('新密码至少 6 位。');
-    const users = readJson(USERS_FILE);
-    const stored = users.find(item => item.id === user.id);
+    const stored = await findUserById(user.id);
     if (!stored || hashPassword(oldPassword, stored.salt) !== stored.passwordHash) throw new Error('旧密码不正确。');
-    stored.salt = crypto.randomBytes(16).toString('base64');
-    stored.passwordHash = hashPassword(newPassword, stored.salt);
-    stored.updatedAt = new Date().toISOString();
-    writeJson(USERS_FILE, users);
+    const salt = crypto.randomBytes(16).toString('base64');
+    await updateUserPassword(stored.id, salt, hashPassword(newPassword, salt));
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
     const token = parseCookies(req).shenghuoji_session;
-    deleteSession(token);
+    await deleteSession(token);
     clearSessionCookie(res);
     return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/library') {
-    const user = requireUser(req);
-    const songs = readJson(SONGS_FILE).filter(song => song.userId === user.id);
+    const user = await requireUser(req);
+    const songs = await listUserSongs(user.id);
     return sendJson(res, 200, { songs });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/generate') {
-    const user = requireUser(req);
+    const user = await requireUser(req);
     const { body, sampleFile } = await readApiPayload(req);
     const provider = musicProvider();
     if (provider === 'demo') throw new Error('No music API key configured.');
@@ -824,12 +1106,12 @@ async function handleApi(req, res, url) {
       saved: false
     };
     tasks.set(id, task);
-    saveGeneratedSong(task);
+    await saveGeneratedSong(task);
     return sendJson(res, 200, task);
   }
 
   if (req.method === 'GET' && url.pathname.startsWith('/api/tasks/')) {
-    const user = requireUser(req);
+    const user = await requireUser(req);
     const id = decodeURIComponent(url.pathname.replace('/api/tasks/', ''));
     const task = tasks.get(id);
     if (!task) return sendJson(res, 404, { error: 'Task not found' });
@@ -839,7 +1121,7 @@ async function handleApi(req, res, url) {
       task.raw = providerRaw;
       task.status = pickStatus(providerRaw, task.status);
       task.audioUrls = findAudioUrls(providerRaw);
-      saveGeneratedSong(task);
+      await saveGeneratedSong(task);
       tasks.set(id, task);
     }
     return sendJson(res, 200, {
