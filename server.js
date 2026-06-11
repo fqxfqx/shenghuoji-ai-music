@@ -502,6 +502,19 @@ async function queryMurekaTask(providerTaskId) {
   return data;
 }
 
+async function checkMurekaAccount() {
+  const response = await fetch('https://api.mureka.ai/v1/account/billing', {
+    method: 'GET',
+    headers: {
+      Authorization: murekaAuthHeader(),
+      'Content-Type': 'application/json'
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka authentication check failed'));
+  return data;
+}
+
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/config') {
     const provider = musicProvider();
@@ -515,6 +528,21 @@ async function handleApi(req, res, url) {
       videoReady: !!process.env.VIDEO_API_KEY,
       videoProvider: process.env.VIDEO_API_PROVIDER || 'local-plan',
       message: provider === 'demo' ? 'No music API key configured; using browser demo engine' : `${provider} connected`
+    });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/music-health') {
+    const provider = musicProvider();
+    if (provider !== 'mureka') {
+      return sendJson(res, 200, { provider, ok: provider !== 'demo', message: provider === 'demo' ? 'No music API configured.' : `${provider} configured.` });
+    }
+    const account = await checkMurekaAccount();
+    return sendJson(res, 200, {
+      provider,
+      ok: true,
+      accountId: account.account_id || account.data?.account_id || null,
+      balance: account.balance ?? account.data?.balance ?? null,
+      concurrentRequestLimit: account.concurrent_request_limit ?? account.data?.concurrent_request_limit ?? null
     });
   }
 
