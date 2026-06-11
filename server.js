@@ -305,11 +305,52 @@ function normalizeLyrics(payload) {
 }
 
 function murekaVoicePrompt(voiceType) {
-  if (/男女|对唱|duet/i.test(voiceType)) return 'male and female duet vocals';
-  if (/男|male/i.test(voiceType)) return /低沉|磁性/.test(voiceType) ? 'deep male vocal' : 'male vocal';
+  if (/男女|对唱|duet/i.test(voiceType)) return 'male and female duet vocals, two distinct singers';
+  if (/男|male/i.test(voiceType)) return /低沉|磁性/.test(voiceType) ? 'deep male lead vocal only, no female lead vocal' : 'male lead vocal only, no female lead vocal';
   if (/儿童|child/i.test(voiceType)) return 'childlike vocal';
   if (/多人|合唱|choir/i.test(voiceType)) return 'group choir vocals';
-  return /温柔/.test(voiceType) ? 'soft female vocal' : 'female vocal';
+  return /温柔/.test(voiceType) ? 'soft female lead vocal only, no male lead vocal' : 'female lead vocal only, no male lead vocal';
+}
+
+function murekaStylePrompt(style) {
+  const text = String(style || '');
+  if (/节奏布鲁斯|R&B|r&b/i.test(text)) return 'Chinese R&B, soulful groove, smooth drums, warm bass';
+  if (/说唱|rap|hip.?hop/i.test(text)) return 'Mandarin rap hip-hop, clear rhythmic vocal delivery';
+  if (/电子|舞曲|EDM/i.test(text)) return 'electronic dance pop, modern synths, energetic beat';
+  if (/未来|贝斯|future/i.test(text)) return 'future bass, wide synth chords, punchy electronic drums';
+  if (/低保真|lo.?fi/i.test(text)) return 'lo-fi pop, relaxed beat, warm tape texture';
+  if (/国风/i.test(text)) return 'Chinese traditional fusion pop, guzheng and modern pop rhythm';
+  if (/摇滚|rock/i.test(text)) return 'indie rock, live drums, electric guitars, strong chorus';
+  if (/金属|metal/i.test(text)) return 'metal rock, heavy guitars, powerful drums';
+  if (/民谣|folk/i.test(text)) return 'Chinese folk ballad, acoustic guitar, intimate vocal';
+  if (/爵士|jazz/i.test(text)) return 'jazz pop, soft piano, upright bass, brushed drums';
+  if (/儿童/i.test(text)) return 'children song, bright melody, simple chorus';
+  if (/古典/i.test(text)) return 'classical crossover pop, strings and piano';
+  if (/流行|pop/i.test(text)) return 'Mandarin Chinese pop, memorable melody, radio-ready arrangement';
+  return `${text}, Mandarin Chinese pop`;
+}
+
+function murekaMoodPrompt(mood) {
+  const text = String(mood || '');
+  if (/高级/.test(text)) return 'polished, elegant, premium mood';
+  if (/热血/.test(text)) return 'passionate, energetic, anthemic mood';
+  if (/松弛/.test(text)) return 'relaxed, easygoing mood';
+  if (/神秘/.test(text)) return 'mysterious, cinematic mood';
+  if (/温暖/.test(text)) return 'warm, sincere, emotional mood';
+  if (/伤感/.test(text)) return 'sad, emotional, heartfelt mood';
+  if (/甜蜜/.test(text)) return 'sweet, romantic mood';
+  return 'bright, memorable mood';
+}
+
+function sampleControlPrompt(payload) {
+  const styleInfluence = Math.max(10, Math.min(100, Number(payload.styleInfluence || 70)));
+  if (styleInfluence >= 85) {
+    return `Use the uploaded audio as a strong reference: keep a very similar tempo, energy curve, song section structure, groove, and overall vibe. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
+  }
+  if (styleInfluence >= 55) {
+    return `Use the uploaded audio as a medium reference: keep a similar vibe, tempo range, rhythm feel, and chorus energy. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
+  }
+  return `Use the uploaded audio as a light inspiration only. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
 }
 
 function buildMurekaPrompt(payload) {
@@ -320,18 +361,23 @@ function buildMurekaPrompt(payload) {
   const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
   const voicePrompt = murekaVoicePrompt(voiceType);
+  const stylePrompt = murekaStylePrompt(style);
+  const moodPrompt = murekaMoodPrompt(mood);
   const targetDuration = Math.max(30, Math.min(240, Number(payload.duration || 90)));
   const durationSource = payload.durationMode === 'sample'
     ? `match the uploaded reference audio length, about ${targetDuration} seconds`
     : `arrange the full song around the lyric length, about ${targetDuration} seconds`;
   return [
-    `${style}, ${mood}, ${voicePrompt}`,
+    `Primary genre and arrangement: ${stylePrompt}`,
+    `Mood: ${moodPrompt}`,
+    `Vocal requirement: ${voicePrompt}`,
     'Mandarin Chinese pop song with clear lead sung vocals',
     'full song, verse and chorus, radio-ready mix',
     durationSource,
     `style influence ${styleInfluence} percent`,
     `use case: ${usecase}`,
     `user direction: ${userPrompt}`,
+    'strictly follow the selected genre and selected vocal gender',
     'must be vocal song, not instrumental, not soundtrack, not background music'
   ].join(', ');
 }
@@ -483,9 +529,28 @@ async function uploadMurekaFile(file, purpose) {
 
 async function callMurekaWithReference(payload, sampleFile) {
   if (!sampleFile) return callMureka(payload);
-  const uploaded = await uploadMurekaFile(sampleFile, 'reference');
-  const data = await callMureka(payload, { referenceId: uploaded.id });
-  data._uploaded_sample = { id: uploaded.id, filename: sampleFile.filename, purpose: 'reference' };
+  const uploaded = await uploadMurekaFile(sampleFile, 'remix');
+  const lyrics = normalizeLyrics(payload);
+  const prompt = [
+    sampleControlPrompt(payload),
+    buildMurekaPrompt(payload)
+  ].join(' ').slice(0, 1024);
+  const response = await fetch('https://api.mureka.ai/v1/song/remix', {
+    method: 'POST',
+    headers: {
+      Authorization: murekaAuthHeader(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      upload_audio_id: uploaded.id,
+      lyrics,
+      prompt,
+      n: 1
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka remix request failed'));
+  data._uploaded_sample = { id: uploaded.id, filename: sampleFile.filename, purpose: 'remix' };
   return data;
 }
 
