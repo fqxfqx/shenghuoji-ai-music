@@ -1819,10 +1819,10 @@
               <div class="reference-card">
                 <div class="section-kicker"><span>参考采样</span><span>可选</span></div>
                 <div class="upload-zone compact-upload" id="coverUploadZone">
-                  <input id="coverAudio" type="file" accept="audio/*" hidden>
+                  <input id="coverAudio" type="file" accept=".mp3,.m4a,audio/mpeg,audio/mp4,audio/x-m4a" hidden>
                   <button class="btn" id="coverPickBtn" type="button">上传音频</button>
                   <strong id="coverFileName">不上传也可以直接创作</strong>
-                  <small>支持 MP3 / WAV / M4A。仅参考氛围，不复制原曲旋律和真实歌手声音。</small>
+                  <small>支持 MP3 / M4A。上传后会走真实参考音频生成，不复制原曲旋律和真实歌手声音。</small>
                 </div>
               </div>
             </div>
@@ -2043,9 +2043,9 @@
           <div class="cover-workbench create-workbench">
             <div class="compose-main">
             <div class="upload-zone compact-upload">
-              <input type="file" accept="audio/*" hidden>
+              <input type="file" accept=".mp3,.m4a,audio/mpeg,audio/mp4,audio/x-m4a" hidden>
               <button class="btn primary" type="button">上传参考音频</button>
-              <strong>支持 MP3 / WAV / M4A，建议 30 秒到 3 分钟</strong>
+              <strong>支持 MP3 / M4A，建议 30 秒到 3 分钟</strong>
               <small>请只上传你本人原创、已获授权或可合法改编的音频。</small>
             </div>
 
@@ -2338,7 +2338,7 @@
             </div>
             <p>根据提示词、歌词、风格和声音选项生成完整歌曲。没配置时使用本地演示音频。</p>
             <div class="api-steps">
-              <span>入口：创作 → 生成 2 首歌</span>
+              <span>入口：创作 → 一键生成歌曲</span>
               <span>接口：POST /api/generate</span>
               <span>配置：MINIMAX_API_KEY 或 MUREKA_API_KEY</span>
             </div>
@@ -2350,9 +2350,9 @@
             </div>
             <p>上传参考音频，生成相似氛围的新歌提示词、歌词草稿和演唱配置。正式翻唱音频生成需要接支持音频输入的模型。</p>
             <div class="api-steps">
-              <span>入口：翻唱创作 → 上传参考音频</span>
-              <span>当前：本地分析方案 + 发送到创作页</span>
-              <span>正式版：接入支持 audio-to-song / cover 的 API</span>
+              <span>入口：创作 → 上传参考采样</span>
+              <span>当前：MP3/M4A 采样会发送到 Mureka Remix</span>
+              <span>说明：不复制原曲旋律和真实歌手声音</span>
             </div>
           </div>
           <div class="api-card">
@@ -3447,6 +3447,13 @@
     }
 
     async function generateWithRealApi(config) {
+      const sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
+      if (sampleFile && !/\.(mp3|m4a)$/i.test(sampleFile.name)) {
+        state.credits += 16;
+        $('credits').textContent = state.credits;
+        showToast('参考采样请上传 MP3 或 M4A，WAV 暂不支持真实参考生成。');
+        return;
+      }
       const task = {
         id: crypto.randomUUID(),
         title: titleFrom(config) + ' API',
@@ -3460,11 +3467,20 @@
       showToast('已提交到真实音乐生成 API。');
 
       try {
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(config)
-        });
+        let requestOptions;
+        if (sampleFile) {
+          const form = new FormData();
+          form.append('payload', JSON.stringify(config));
+          form.append('sample', sampleFile);
+          requestOptions = { method: 'POST', body: form };
+        } else {
+          requestOptions = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+          };
+        }
+        const response = await fetch('/api/generate', requestOptions);
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'API 提交失败');
         task.providerTaskId = data.id;
@@ -3473,14 +3489,12 @@
         renderQueue();
         pollRealTask(task);
       } catch (error) {
-        task.status = 'API 失败，切回演示生成';
+        state.credits += 16;
+        $('credits').textContent = state.credits;
+        task.status = 'API 失败，未生成';
         task.progress = 100;
         renderQueue();
-        showToast(error.message || '真实 API 调用失败，已使用演示引擎。');
-        setTimeout(() => {
-          state.queue = state.queue.filter(x => x.id !== task.id);
-          runTask({ ...task, id: crypto.randomUUID(), status: '演示生成', progress: 0 }, 0);
-        }, 700);
+        showToast(error.message || '真实 API 调用失败，已退回本次积分。');
       }
     }
 
@@ -3753,6 +3767,12 @@
     if (coverPickBtn && coverAudio) coverPickBtn.addEventListener('click', () => coverAudio.click());
     if (coverAudio) coverAudio.addEventListener('change', () => {
       const file = coverAudio.files && coverAudio.files[0];
+      if (file && !/\.(mp3|m4a)$/i.test(file.name)) {
+        coverAudio.value = '';
+        if ($('coverFileName')) $('coverFileName').textContent = '不上传也可以直接创作';
+        showToast('参考采样请上传 MP3 或 M4A，WAV 暂不支持真实参考生成。');
+        return;
+      }
       if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '不上传也可以直接创作';
       if (file) showToast('参考采样已添加，填写关键词后可直接创作。');
     });

@@ -75,6 +75,72 @@ function readBody(req) {
   });
 }
 
+function readRawBody(req, limit = 40 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(new Error('Request body too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+function parseMultipart(buffer, contentType) {
+  const boundaryMatch = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType || '');
+  if (!boundaryMatch) throw new Error('Missing multipart boundary.');
+  const boundary = `--${boundaryMatch[1] || boundaryMatch[2]}`;
+  const fields = {};
+  const files = {};
+  const parts = buffer.toString('binary').split(boundary);
+  for (let part of parts) {
+    if (!part || part === '--\r\n' || part === '--') continue;
+    if (part.startsWith('\r\n')) part = part.slice(2);
+    if (part.endsWith('\r\n')) part = part.slice(0, -2);
+    if (part.endsWith('--')) part = part.slice(0, -2);
+    const headerEnd = part.indexOf('\r\n\r\n');
+    if (headerEnd < 0) continue;
+    const headerText = part.slice(0, headerEnd);
+    const bodyText = part.slice(headerEnd + 4);
+    const disposition = /content-disposition:\s*form-data;([^\r\n]+)/i.exec(headerText)?.[1] || '';
+    const name = /name="([^"]+)"/i.exec(disposition)?.[1];
+    if (!name) continue;
+    const filename = /filename="([^"]*)"/i.exec(disposition)?.[1];
+    const contentTypeHeader = /content-type:\s*([^\r\n]+)/i.exec(headerText)?.[1]?.trim() || 'application/octet-stream';
+    const data = Buffer.from(bodyText, 'binary');
+    if (filename) {
+      files[name] = { filename, contentType: contentTypeHeader, data, size: data.length };
+    } else {
+      fields[name] = data.toString('utf8');
+    }
+  }
+  return { fields, files };
+}
+
+async function readApiPayload(req) {
+  const contentType = req.headers['content-type'] || '';
+  if (/multipart\/form-data/i.test(contentType)) {
+    const raw = await readRawBody(req);
+    const parsed = parseMultipart(raw, contentType);
+    const payloadText = parsed.fields.payload || parsed.fields.config || '{}';
+    let body;
+    try {
+      body = JSON.parse(payloadText);
+    } catch {
+      throw new Error('Invalid payload JSON.');
+    }
+    return { body, sampleFile: parsed.files.sample || null };
+  }
+  return { body: await readBody(req), sampleFile: null };
+}
+
 function parseCookies(req) {
   const out = {};
   const header = req.headers.cookie || '';
@@ -331,11 +397,72 @@ async function callMureka(payload) {
     body: JSON.stringify({
       model,
       lyrics,
-      prompt: buildMurekaPrompt(payload)
+      prompt: murekaPrompt(payload),
+      n: 1
     })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka request failed');
+  return data;
+}
+
+function murekaPrompt(payload) {
+  return buildMurekaPrompt(payload).slice(0, 1024);
+}
+
+function pickMurekaFileId(raw) {
+  return raw?.id
+    || raw?.file_id
+    || raw?.data?.id
+    || raw?.data?.file_id
+    || raw?.result?.id
+    || raw?.result?.file_id;
+}
+
+async function uploadMurekaFile(file, purpose) {
+  if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
+  const filename = String(file?.filename || '').trim();
+  if (!/\.(mp3|m4a)$/i.test(filename)) {
+    throw new Error('Mureka 参考采样目前只支持 MP3 / M4A，请先把音频转成 MP3 或 M4A 后再上传。');
+  }
+  const form = new FormData();
+  const blob = new Blob([file.data], { type: file.contentType || 'audio/mpeg' });
+  form.append('file', blob, filename);
+  form.append('purpose', purpose);
+  const response = await fetch('https://api.mureka.ai/v1/files/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`
+    },
+    body: form
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka file upload failed');
+  const id = pickMurekaFileId(data);
+  if (!id) throw new Error('Mureka file upload succeeded but no file id was returned.');
+  return { id, raw: data };
+}
+
+async function callMurekaRemix(payload, sampleFile) {
+  if (!sampleFile) return callMureka(payload);
+  const lyrics = normalizeLyrics(payload);
+  const uploaded = await uploadMurekaFile(sampleFile, 'remix');
+  const response = await fetch('https://api.mureka.ai/v1/song/remix', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      upload_audio_id: uploaded.id,
+      lyrics,
+      prompt: murekaPrompt(payload),
+      n: 1
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka remix request failed');
+  data._uploaded_sample = { id: uploaded.id, filename: sampleFile.filename };
   return data;
 }
 
@@ -433,10 +560,10 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'POST' && url.pathname === '/api/generate') {
     const user = requireUser(req);
-    const body = await readBody(req);
+    const { body, sampleFile } = await readApiPayload(req);
     const provider = musicProvider();
     if (provider === 'demo') throw new Error('No music API key configured.');
-    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMureka(body);
+    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaRemix(body, sampleFile);
     const audioUrls = findAudioUrls(raw);
     const id = crypto.randomUUID();
     const task = {
