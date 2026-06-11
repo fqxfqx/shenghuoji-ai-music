@@ -314,10 +314,15 @@ function buildMurekaPrompt(payload) {
   const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
   const voicePrompt = murekaVoicePrompt(voiceType);
+  const targetDuration = Math.max(30, Math.min(240, Number(payload.duration || 90)));
+  const durationSource = payload.durationMode === 'sample'
+    ? `match the uploaded reference audio length, about ${targetDuration} seconds`
+    : `arrange the full song around the lyric length, about ${targetDuration} seconds`;
   return [
     `${style}, ${mood}, ${voicePrompt}`,
     'Mandarin Chinese pop song with clear lead sung vocals',
     'full song, verse and chorus, radio-ready mix',
+    durationSource,
     `style influence ${styleInfluence} percent`,
     `use case: ${usecase}`,
     `user direction: ${userPrompt}`,

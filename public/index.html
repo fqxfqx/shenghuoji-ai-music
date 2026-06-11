@@ -1919,10 +1919,10 @@
                     </div>
                   </div>
                   <div class="field">
-                    <label for="duration">时长 <span id="durationLabel">36s</span></label>
+                    <label for="duration">自动时长 <span id="durationLabel">按歌词估算</span></label>
                     <div class="range-row">
-                      <input id="duration" type="range" min="16" max="72" value="36">
-                      <span id="durationValue">36 秒</span>
+                      <input id="duration" type="hidden" value="0">
+                      <span id="durationValue">生成时自动判断</span>
                     </div>
                   </div>
                 </div>
@@ -2440,6 +2440,7 @@
       user: null,
       queue: [],
       library: [],
+      sampleDuration: 0,
       lastHelper: null,
       lastCoverIdea: null,
       lastMvIdea: null,
@@ -2500,6 +2501,43 @@
     function warnIfOpenedAsFile() {
       if (location.protocol !== 'file:') return;
       showToast('请用线上网址测试生成：shenghuoji-ai-music-production.up.railway.app');
+    }
+
+    function clampNumber(value, min, max) {
+      return Math.max(min, Math.min(max, Number(value) || min));
+    }
+
+    function estimateDurationFromText(lyrics, prompt) {
+      const lyricLines = String(lyrics || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const text = `${lyrics || ''}\n${prompt || ''}`.replace(/\s+/g, '');
+      const cjkChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+      const allChars = text.length;
+      const lineEstimate = lyricLines.length ? lyricLines.length * 6.5 + 18 : 0;
+      const charEstimate = Math.max(cjkChars * 0.55, allChars * 0.32);
+      return Math.round(clampNumber(Math.max(lineEstimate, charEstimate, 45), 30, 240));
+    }
+
+    function autoDurationInfo() {
+      const sampleSeconds = Number(state.sampleDuration || 0);
+      if (sampleSeconds > 0) {
+        return {
+          seconds: Math.round(clampNumber(sampleSeconds, 30, 240)),
+          mode: 'sample',
+          label: `采样约 ${Math.round(sampleSeconds)}s`
+        };
+      }
+      const seconds = estimateDurationFromText(lyricsEl.value, promptEl.value);
+      return { seconds, mode: 'lyrics', label: `歌词约 ${seconds}s` };
+    }
+
+    function updateAutoDuration() {
+      const info = autoDurationInfo();
+      durationEl.value = info.seconds;
+      durationValue.textContent = info.mode === 'sample'
+        ? `按采样音频生成，约 ${info.seconds} 秒`
+        : `按歌词内容估算，约 ${info.seconds} 秒`;
+      durationLabel.textContent = info.label;
+      return info;
     }
 
     function setupPageViews() {
@@ -3140,9 +3178,7 @@
       lyricsEl.value = result.lyrics || fallback.lyrics;
       styleEl.value = result.style || fallback.style;
       voiceTypeEl.value = result.voiceType || fallback.voiceType;
-      durationEl.value = result.duration || fallback.duration;
-      durationValue.textContent = durationEl.value + ' 秒';
-      durationLabel.textContent = durationEl.value + 's';
+      updateAutoDuration();
       state.selectedMood = result.mood || fallback.mood;
       document.querySelectorAll('#moods .chip').forEach(btn => btn.classList.toggle('active', btn.textContent.trim() === state.selectedMood));
       state.lastHelper = {
@@ -3416,6 +3452,7 @@
       const sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
       const sampleHint = sampleFile ? `参考用户上传的采样《${sampleFile.name.replace(/\.[^.]+$/, '')}》的情绪、速度和整体氛围，但不要复制原曲旋律，不要模仿真实歌手。` : '';
       const userPrompt = promptEl.value.trim() || '为新品牌发布短片生成一首有记忆点的商业音乐';
+      const durationInfo = updateAutoDuration();
       return {
         prompt: sampleHint ? `${userPrompt}。${sampleHint}` : userPrompt,
         lyrics: lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光',
@@ -3426,7 +3463,10 @@
         voiceIntensity: Number(voiceIntensityEl.value),
         mood: state.selectedMood,
         vocals: state.vocals,
-        duration: Number(durationEl.value),
+        duration: durationInfo.seconds,
+        durationMode: durationInfo.mode,
+        durationSource: durationInfo.label,
+        sampleDuration: Math.round(Number(state.sampleDuration || 0)),
         sampleName: sampleFile ? sampleFile.name : ''
       };
     }
@@ -3653,10 +3693,8 @@
       $('vocalSwitch').setAttribute('aria-checked', String(state.vocals));
     });
 
-    durationEl.addEventListener('input', () => {
-      durationValue.textContent = durationEl.value + ' 秒';
-      durationLabel.textContent = durationEl.value + 's';
-    });
+    promptEl.addEventListener('input', updateAutoDuration);
+    lyricsEl.addEventListener('input', updateAutoDuration);
 
     voiceIntensityEl.addEventListener('input', () => {
       $('voiceIntensityValue').textContent = voiceIntensityEl.value + '%';
@@ -3697,6 +3735,7 @@
       voiceIntensityEl.value = 82;
       $('voiceIntensityValue').textContent = '82%';
       $('voiceIntensityLabel').textContent = '82%';
+      updateAutoDuration();
       showToast('已填入示例需求。');
     });
 
@@ -3750,14 +3789,12 @@
       usecaseEl.value = preset.usecase;
       voiceTypeEl.value = preset.voiceType;
       syncVoiceQuick(voiceTypeEl.value);
-      durationEl.value = preset.duration;
-      durationValue.textContent = preset.duration + ' 秒';
-      durationLabel.textContent = preset.duration + 's';
       voiceIntensityEl.value = preset.intensity;
       $('voiceIntensityValue').textContent = preset.intensity + '%';
       $('voiceIntensityLabel').textContent = preset.intensity + '%';
       const moodButton = [...document.querySelectorAll('#moods .chip')].find(btn => btn.textContent.trim() === preset.mood);
       if (moodButton) moodButton.click();
+      updateAutoDuration();
       showPage('create');
       showToast('已应用模板：' + preset.style + ' / ' + preset.voiceType);
     }
@@ -3788,12 +3825,31 @@
       const file = coverAudio.files && coverAudio.files[0];
       if (file && !/\.(mp3|m4a)$/i.test(file.name)) {
         coverAudio.value = '';
+        state.sampleDuration = 0;
+        updateAutoDuration();
         if ($('coverFileName')) $('coverFileName').textContent = '不上传也可以直接创作';
         showToast('参考采样请上传 MP3 或 M4A，WAV 暂不支持真实参考生成。');
         return;
       }
       if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '不上传也可以直接创作';
-      if (file) showToast('参考采样已添加，填写关键词后可直接创作。');
+      state.sampleDuration = 0;
+      updateAutoDuration();
+      if (file) {
+        const audioUrl = URL.createObjectURL(file);
+        const probe = new Audio();
+        probe.preload = 'metadata';
+        probe.onloadedmetadata = () => {
+          URL.revokeObjectURL(audioUrl);
+          state.sampleDuration = Number.isFinite(probe.duration) ? probe.duration : 0;
+          updateAutoDuration();
+          showToast(state.sampleDuration ? `参考采样已添加，自动时长约 ${Math.round(state.sampleDuration)} 秒。` : '参考采样已添加，填写关键词后可直接创作。');
+        };
+        probe.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          showToast('参考采样已添加，但无法读取时长，将按歌词自动估算。');
+        };
+        probe.src = audioUrl;
+      }
     });
     if (coverSimilarity) coverSimilarity.addEventListener('input', () => {
       if ($('coverSimilarityValue')) $('coverSimilarityValue').textContent = coverSimilarity.value + '%';
@@ -3831,6 +3887,7 @@
     setupPageViews();
     drawCover(42, 'Auraly AI');
     drawWave(new Float32Array(900).map((_, i) => Math.sin(i / 6) * Math.sin(i / 43) * 0.7));
+    updateAutoDuration();
     warnIfOpenedAsFile();
     loadApiConfig();
     loadCurrentUser();
