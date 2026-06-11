@@ -384,25 +384,27 @@ async function callMiniMax(payload) {
   return data;
 }
 
-async function callMureka(payload) {
+async function callMureka(payload, options = {}) {
   if (!process.env.MUREKA_API_KEY) throw new Error('MUREKA_API_KEY is missing.');
   const model = process.env.MUREKA_MODEL || 'auto';
   const lyrics = normalizeLyrics(payload);
+  const body = {
+    model,
+    lyrics,
+    prompt: murekaPrompt(payload),
+    n: 1
+  };
+  if (options.referenceId) body.reference_id = options.referenceId;
   const response = await fetch('https://api.mureka.ai/v1/song/generate', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      model,
-      lyrics,
-      prompt: murekaPrompt(payload),
-      n: 1
-    })
+    body: JSON.stringify(body)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka request failed');
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka request failed'));
   return data;
 }
 
@@ -417,6 +419,19 @@ function pickMurekaFileId(raw) {
     || raw?.data?.file_id
     || raw?.result?.id
     || raw?.result?.file_id;
+}
+
+function murekaError(data, fallback) {
+  if (typeof data?.error === 'string') return data.error;
+  if (data?.error?.message) return data.error.message;
+  if (data?.message) return data.message;
+  if (data?.detail) return typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+  try {
+    const text = JSON.stringify(data);
+    return text && text !== '{}' ? text.slice(0, 500) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 async function uploadMurekaFile(file, purpose) {
@@ -437,32 +452,17 @@ async function uploadMurekaFile(file, purpose) {
     body: form
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka file upload failed');
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka file upload failed'));
   const id = pickMurekaFileId(data);
   if (!id) throw new Error('Mureka file upload succeeded but no file id was returned.');
   return { id, raw: data };
 }
 
-async function callMurekaRemix(payload, sampleFile) {
+async function callMurekaWithReference(payload, sampleFile) {
   if (!sampleFile) return callMureka(payload);
-  const lyrics = normalizeLyrics(payload);
-  const uploaded = await uploadMurekaFile(sampleFile, 'remix');
-  const response = await fetch('https://api.mureka.ai/v1/song/remix', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.MUREKA_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      upload_audio_id: uploaded.id,
-      lyrics,
-      prompt: murekaPrompt(payload),
-      n: 1
-    })
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka remix request failed');
-  data._uploaded_sample = { id: uploaded.id, filename: sampleFile.filename };
+  const uploaded = await uploadMurekaFile(sampleFile, 'reference');
+  const data = await callMureka(payload, { referenceId: uploaded.id });
+  data._uploaded_sample = { id: uploaded.id, filename: sampleFile.filename, purpose: 'reference' };
   return data;
 }
 
@@ -476,7 +476,7 @@ async function queryMurekaTask(providerTaskId) {
     }
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || data.message || 'Mureka query failed');
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka query failed'));
   return data;
 }
 
@@ -563,7 +563,7 @@ async function handleApi(req, res, url) {
     const { body, sampleFile } = await readApiPayload(req);
     const provider = musicProvider();
     if (provider === 'demo') throw new Error('No music API key configured.');
-    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaRemix(body, sampleFile);
+    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaWithReference(body, sampleFile);
     const audioUrls = findAudioUrls(raw);
     const id = crypto.randomUUID();
     const task = {

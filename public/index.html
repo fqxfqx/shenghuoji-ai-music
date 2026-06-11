@@ -548,6 +548,7 @@
 
     .item b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .item span { color: var(--muted); font-size: 12px; }
+    .error-text { display: block; margin-top: 4px; color: #f87171; font-size: 12px; line-height: 1.45; }
     .item-actions { display: flex; gap: 8px; }
     .icon-btn {
       width: 36px;
@@ -2351,7 +2352,7 @@
             <p>上传参考音频，生成相似氛围的新歌提示词、歌词草稿和演唱配置。正式翻唱音频生成需要接支持音频输入的模型。</p>
             <div class="api-steps">
               <span>入口：创作 → 上传参考采样</span>
-              <span>当前：MP3/M4A 采样会发送到 Mureka Remix</span>
+              <span>当前：MP3/M4A 采样会作为 Mureka 参考音频生成</span>
               <span>说明：不复制原曲旋律和真实歌手声音</span>
             </div>
           </div>
@@ -3049,14 +3050,25 @@
       timeLabel.textContent = formatTime(state.audio.currentTime) + ' / ' + formatTime(state.audio.duration);
     }
 
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
     function renderQueue() {
       $('queueCount').textContent = state.queue.length + ' 个任务';
       $('queue').innerHTML = state.queue.length ? state.queue.map(task => `
         <div class="item">
           <div class="thumb"></div>
           <div>
-            <b>${task.title}</b>
-            <span>${task.status} · ${task.progress}% · ${task.style} / ${task.mood}</span>
+            <b>${escapeHtml(task.title)}</b>
+            <span>${escapeHtml(task.status)} · ${task.progress}% · ${escapeHtml(task.style)} / ${escapeHtml(task.mood)}</span>
+            ${task.error ? `<small class="error-text">${escapeHtml(task.error)}</small>` : ''}
           </div>
           <div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>
         </div>
@@ -3492,9 +3504,10 @@
         state.credits += 16;
         $('credits').textContent = state.credits;
         task.status = 'API 失败，未生成';
+        task.error = error.message || '真实 API 调用失败，已退回本次积分。';
         task.progress = 100;
         renderQueue();
-        showToast(error.message || '真实 API 调用失败，已退回本次积分。');
+        showToast(task.error);
       }
     }
 
@@ -3521,8 +3534,9 @@
           if (attempts > 20) {
             clearInterval(timer);
             task.status = '查询超时';
+            task.error = error.message || '真实 API 查询超时。';
             renderQueue();
-            showToast(error.message || '真实 API 查询超时。');
+            showToast(task.error);
           }
         }
       }, 8000);
