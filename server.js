@@ -127,22 +127,40 @@ function musicProvider() {
   return 'demo';
 }
 
-function findAudioUrls(value, urls = new Set(), keyHint = '') {
-  if (!value) return [...urls];
+function findAudioUrls(value) {
+  const candidates = [];
+  collectAudioUrlCandidates(value, candidates);
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .filter(candidate => candidate.score > 0)
+    .map(candidate => candidate.url)
+    .filter((url, index, all) => all.indexOf(url) === index);
+}
+
+function collectAudioUrlCandidates(value, candidates, keyPath = '') {
+  if (!value) return;
   if (typeof value === 'string') {
     const looksLikeAudioUrl = /^https?:\/\/.*\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
-    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac)/i.test(keyHint);
-    if (looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value))) urls.add(value);
-    return [...urls];
+    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac)/i.test(keyPath);
+    const keyLooksImage = /(cover|image|artwork|poster|thumbnail|avatar)/i.test(keyPath);
+    const valueLooksImage = /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(value);
+    if ((looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value))) && !keyLooksImage && !valueLooksImage) {
+      const negative = /(instrumental|accompaniment|backing|stem|drum|bass|other|separate|伴奏|分轨)/i.test(`${keyPath} ${value}`);
+      let score = looksLikeAudioUrl ? 20 : 8;
+      if (/(song|full|complete|mix|master|audio|url|歌曲|成品|完整)/i.test(keyPath)) score += 16;
+      if (/(vocal|voice|sing|人声|演唱)/i.test(keyPath)) score += 8;
+      if (negative) score -= 50;
+      candidates.push({ url: value, score });
+    }
+    return;
   }
   if (Array.isArray(value)) {
-    for (const item of value) findAudioUrls(item, urls, keyHint);
-    return [...urls];
+    for (const item of value) collectAudioUrlCandidates(item, candidates, keyPath);
+    return;
   }
   if (typeof value === 'object') {
-    for (const [key, item] of Object.entries(value)) findAudioUrls(item, urls, key);
+    for (const [key, item] of Object.entries(value)) collectAudioUrlCandidates(item, candidates, keyPath ? `${keyPath}.${key}` : key);
   }
-  return [...urls];
 }
 
 function pickProviderTaskId(raw, fallback) {
@@ -169,7 +187,18 @@ function pickStatus(raw, fallback = 'processing') {
 function normalizeLyrics(payload) {
   const prompt = String(payload.prompt || '写一首给普通人的中文歌曲').trim();
   const provided = String(payload.lyrics || '').trim();
-  if (provided.length >= 24 && /\n/.test(provided)) return provided;
+  if (provided.length >= 24 && /\n/.test(provided)) {
+    if (/^\s*\[(verse|chorus|pre-chorus|bridge|intro|outro)\]/im.test(provided)) return provided;
+    const lines = provided.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const splitAt = Math.max(2, Math.ceil(lines.length / 2));
+    return [
+      '[Verse]',
+      ...lines.slice(0, splitAt),
+      '',
+      '[Chorus]',
+      ...lines.slice(splitAt)
+    ].join('\n');
+  }
   const baseLine = provided || prompt;
   return [
     '[Verse]',
@@ -189,6 +218,14 @@ function normalizeLyrics(payload) {
   ].join('\n');
 }
 
+function murekaVoicePrompt(voiceType) {
+  if (/男女|对唱|duet/i.test(voiceType)) return 'male and female duet vocals';
+  if (/男|male/i.test(voiceType)) return /低沉|磁性/.test(voiceType) ? 'deep male vocal' : 'male vocal';
+  if (/儿童|child/i.test(voiceType)) return 'childlike vocal';
+  if (/多人|合唱|choir/i.test(voiceType)) return 'group choir vocals';
+  return /温柔/.test(voiceType) ? 'soft female vocal' : 'female vocal';
+}
+
 function buildMurekaPrompt(payload) {
   const style = String(payload.style || '中文流行').trim();
   const mood = String(payload.mood || '真诚温暖').trim();
@@ -196,15 +233,16 @@ function buildMurekaPrompt(payload) {
   const voiceType = String(payload.voiceType || '自然中文人声').trim();
   const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
+  const voicePrompt = murekaVoicePrompt(voiceType);
   return [
-    `生成一首完整的中文真人演唱歌曲，风格：${style}，情绪：${mood}，用途：${usecase}。`,
-    `演唱声音：${voiceType}，必须有人声主唱，歌词要被唱出来。`,
-    `风格影响程度：${styleInfluence}%，请在保持歌词表达清楚的前提下体现该风格。`,
-    '不要生成纯音乐，不要背景音乐，不要 soundtrack，不要 instrumental。',
-    '请严格围绕用户需求和歌词创作，旋律完整，有主歌、副歌和清晰的人声。',
-    `User direction: ${userPrompt}`,
-    `Full vocal song with sung Chinese vocals, not instrumental, not BGM, follow the lyrics closely. Voice: ${voiceType}.`
-  ].join(' ');
+    `${style}, ${mood}, ${voicePrompt}`,
+    'Mandarin Chinese pop song with clear lead sung vocals',
+    'full song, verse and chorus, radio-ready mix',
+    `style influence ${styleInfluence} percent`,
+    `use case: ${usecase}`,
+    `user direction: ${userPrompt}`,
+    'must be vocal song, not instrumental, not soundtrack, not background music'
+  ].join(', ');
 }
 
 function saveGeneratedSong(task) {
