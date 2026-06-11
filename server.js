@@ -194,11 +194,17 @@ function musicProvider() {
 }
 
 function cleanSecret(value) {
-  return String(value || '')
+  let secret = String(value || '')
     .trim()
     .replace(/^["']|["']$/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/^MUREKA_API_KEY\s*=\s*/i, '')
+    .replace(/^Authorization\s*:\s*/i, '')
     .replace(/^Bearer\s+/i, '')
     .trim();
+  const bearerMatch = secret.match(/Bearer\s+([A-Za-z0-9._~+/=-]+)/i);
+  if (bearerMatch) secret = bearerMatch[1];
+  return secret.replace(/^["']|["']$/g, '').trim();
 }
 
 function murekaAuthHeader() {

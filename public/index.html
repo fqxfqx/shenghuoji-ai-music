@@ -2540,6 +2540,17 @@
       return info;
     }
 
+    function friendlyApiError(message) {
+      const text = String(message || '');
+      if (/invalid authentication|unauthorized|authentication/i.test(text)) {
+        return 'Mureka API Key 无效或填错了。请到 Railway 的 Variables 里重新粘贴 MUREKA_API_KEY，只填 API 密钥本身，不要填网页登录密码。';
+      }
+      if (/insufficient|balance|credit|quota/i.test(text)) {
+        return 'Mureka 余额或额度不足，请先到 Mureka 控制台充值或确认套餐可用。';
+      }
+      return text || '真实 API 调用失败，已退回本次积分。';
+    }
+
     function setupPageViews() {
       const main = document.querySelector('main');
       if (!main || document.querySelector('[data-page-view="create"]')) return;
@@ -3549,7 +3560,7 @@
         state.credits += 16;
         $('credits').textContent = state.credits;
         task.status = 'API 失败，未生成';
-        task.error = error.message || '真实 API 调用失败，已退回本次积分。';
+        task.error = friendlyApiError(error.message);
         task.progress = 100;
         renderQueue();
         showToast(task.error);
@@ -3579,7 +3590,7 @@
           if (attempts > 20) {
             clearInterval(timer);
             task.status = '查询超时';
-            task.error = error.message || '真实 API 查询超时。';
+            task.error = friendlyApiError(error.message || '真实 API 查询超时。');
             renderQueue();
             showToast(task.error);
           }
