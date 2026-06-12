@@ -1770,6 +1770,372 @@
       .item { grid-template-columns: 44px minmax(0, 1fr); }
       .item-actions { grid-column: 1 / -1; justify-content: flex-end; }
     }
+
+    /* Workbench rewrite: left creation panel, right song list, bottom player. */
+    .page-view[data-page-view="create"] {
+      min-height: calc(100vh - 140px);
+    }
+
+    .page-view[data-page-view="create"] > .topbar {
+      min-height: 0;
+      padding: 10px 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .page-view[data-page-view="create"] > .topbar h1 {
+      font-size: 18px;
+      line-height: 1.2;
+      color: #f8fafc;
+      background: none;
+      -webkit-background-clip: initial;
+      background-clip: initial;
+    }
+
+    .page-view[data-page-view="create"] > .topbar .subhead {
+      display: none;
+    }
+
+    .page-view[data-page-view="create"] > .template-panel {
+      width: min(560px, calc(100% - 380px));
+      margin: -62px 0 12px auto;
+      background: rgba(12, 12, 15, 0.64);
+      box-shadow: none;
+    }
+
+    .page-view[data-page-view="create"] .template-panel .panel-head {
+      padding: 10px 12px 0;
+      border-bottom: 0;
+    }
+
+    .page-view[data-page-view="create"] .template-panel .panel-head h2 {
+      font-size: 14px;
+    }
+
+    .page-view[data-page-view="create"] .template-panel .subhead {
+      display: none;
+    }
+
+    .page-view[data-page-view="create"] .template-grid {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 10px 12px 12px;
+    }
+
+    .page-view[data-page-view="create"] .template {
+      min-width: 126px;
+      min-height: 72px;
+      padding: 10px;
+      border-radius: 12px;
+    }
+
+    .page-view[data-page-view="create"] .template strong {
+      font-size: 13px;
+    }
+
+    .page-view[data-page-view="create"] .template span,
+    .page-view[data-page-view="create"] .template::after {
+      display: none;
+    }
+
+    #create {
+      grid-template-columns: 292px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    #create > .panel:first-child {
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 118px);
+      overflow: auto;
+      box-shadow: none;
+      background: rgba(18, 18, 22, 0.92);
+    }
+
+    #create > .panel:first-child .panel-head {
+      padding: 12px;
+    }
+
+    #create > .panel:first-child .panel-head h2 {
+      font-size: 15px;
+    }
+
+    #create > .panel:first-child .status {
+      font-size: 11px;
+    }
+
+    #create .create-workbench {
+      display: block;
+      padding: 12px;
+    }
+
+    #create .compose-main,
+    #create .compose-side,
+    #create .reference-card,
+    #create .advanced-card {
+      padding: 12px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    #create .compose-main textarea,
+    #create #prompt,
+    #create #lyrics {
+      min-height: 104px;
+      max-height: 180px;
+      font-size: 13px;
+    }
+
+    #create .lyrics-large textarea {
+      min-height: 132px;
+    }
+
+    #create .field {
+      margin-bottom: 10px;
+    }
+
+    #create .chips,
+    #create .voice-segment {
+      gap: 6px;
+    }
+
+    #create .chip,
+    #create .voice-chip {
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+    #create .more-options {
+      padding-top: 10px;
+    }
+
+    #create #generateBtn {
+      position: sticky;
+      bottom: 0;
+      height: 46px;
+      z-index: 2;
+    }
+
+    .studio {
+      min-height: calc(100vh - 178px);
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+      gap: 0;
+    }
+
+    .studio > .panel:first-child {
+      position: fixed;
+      left: 232px;
+      right: 0;
+      bottom: 0;
+      z-index: 15;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      border-bottom: 0;
+      box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.44);
+      background: rgba(17, 17, 20, 0.96);
+      backdrop-filter: blur(18px);
+    }
+
+    .studio > .panel:first-child .panel-head {
+      display: none;
+    }
+
+    .studio .stage {
+      min-height: 86px;
+      padding: 10px 22px;
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+
+    .studio .cover {
+      width: 56px;
+      min-height: 56px;
+      border-radius: 10px;
+    }
+
+    .studio .track-meta {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.42fr) minmax(300px, 0.58fr);
+      align-items: center;
+      gap: 18px;
+    }
+
+    .studio .track-meta h2 {
+      font-size: 15px;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .studio .track-meta p,
+    .studio .badges {
+      display: none;
+    }
+
+    .studio .wave-wrap {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      grid-template-columns: 1fr;
+    }
+
+    .studio #waveform {
+      display: none;
+    }
+
+    .studio .transport {
+      grid-template-columns: 42px minmax(0, 1fr) 92px;
+    }
+
+    .studio .round {
+      width: 40px;
+      height: 40px;
+      background: #f8fafc;
+      color: #0b0b10;
+    }
+
+    .studio > .panel:last-child {
+      min-height: calc(100vh - 178px);
+      box-shadow: none;
+      background: rgba(12, 12, 15, 0.7);
+    }
+
+    .studio > .panel:last-child .panel-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding: 12px 16px;
+      background: rgba(12, 12, 15, 0.92);
+      backdrop-filter: blur(16px);
+    }
+
+    #queue {
+      padding: 8px 10px 120px;
+      gap: 4px;
+    }
+
+    #queue .item {
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      min-height: 72px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+    }
+
+    #queue .item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    #queue .track-row.active {
+      background: rgba(139, 92, 246, 0.14);
+      box-shadow: inset 3px 0 0 #8b5cf6;
+    }
+
+    #queue .thumb {
+      border-radius: 9px;
+    }
+
+    #queue .track-row b {
+      font-size: 14px;
+    }
+
+    #queue .track-row span {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #queue .item-actions {
+      grid-column: auto;
+      justify-content: flex-end;
+    }
+
+    #queue .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-toolbar .btn {
+      padding: 7px 11px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1260px) {
+      .page-view[data-page-view="create"] > .template-panel {
+        width: 100%;
+        margin: 0 0 12px;
+      }
+
+      #create {
+        grid-template-columns: 1fr;
+      }
+
+      #create > .panel:first-child {
+        position: static;
+        max-height: none;
+      }
+
+      .studio > .panel:first-child {
+        left: 0;
+      }
+
+      .studio .stage {
+        grid-template-columns: 48px minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page-view[data-page-view="create"] > .topbar {
+        align-items: flex-start;
+      }
+
+      .page-view[data-page-view="create"] > .topbar .actions {
+        width: auto;
+      }
+
+      .studio .track-meta {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .studio .stage {
+        padding: 8px 12px;
+      }
+
+      .studio .transport {
+        grid-template-columns: 40px minmax(0, 1fr) 76px;
+      }
+
+      #queue .item {
+        grid-template-columns: 44px minmax(0, 1fr);
+      }
+
+      #queue .item-actions {
+        grid-column: 2;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2012,8 +2378,12 @@
 
           <div class="panel">
             <div class="panel-head">
-              <h3>生成中</h3>
-              <span class="subhead" id="queueCount">0 个任务</span>
+              <h3>工作区作品</h3>
+              <div class="result-toolbar">
+                <span class="subhead" id="queueCount">0 个任务 · 0 首作品</span>
+                <button class="btn" type="button">最新</button>
+                <button class="btn" type="button">列表</button>
+              </div>
             </div>
             <div class="panel-body queue" id="queue"></div>
           </div>
@@ -3251,7 +3621,9 @@
       licenseBtn.disabled = false;
       drawWave(track.samples);
       drawCover(track.seed, track.title);
+      playBtn.textContent = '▶';
       updatePlayback();
+      if ($('queue')) renderQueue();
     }
 
     function updatePlayback() {
@@ -3276,9 +3648,9 @@
     }
 
     function renderQueue() {
-      $('queueCount').textContent = state.queue.length + ' 个任务';
-      $('queue').innerHTML = state.queue.length ? state.queue.map(task => `
-        <div class="item">
+      const tracks = state.library;
+      const pendingRows = state.queue.map(task => `
+        <div class="item task-row">
           <div class="thumb"></div>
           <div>
             <b>${escapeHtml(task.title)}</b>
@@ -3287,7 +3659,30 @@
           </div>
           <div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>
         </div>
-      `).join('') : '<div class="empty">暂无任务。点击生成后会看到排队、生成、完成状态。</div>';
+      `);
+      const trackRows = tracks.map(track => `
+        <div class="item track-row ${state.current && state.current.id === track.id ? 'active' : ''}">
+          <div class="thumb" style="background:${track.thumb}"></div>
+          <div>
+            <b>${escapeHtml(track.title)}</b>
+            <span>${escapeHtml(track.style)} · ${escapeHtml(track.voiceType)} · ${escapeHtml(track.mood)} · ${track.duration}s · ${escapeHtml(track.createdAt)}</span>
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn" title="播放" data-play="${track.id}">▶</button>
+            <button class="icon-btn" title="下载" data-download="${track.id}">↧</button>
+          </div>
+        </div>
+      `);
+      $('queueCount').textContent = `${state.queue.length} 个任务 · ${tracks.length} 首作品`;
+      $('queue').innerHTML = pendingRows.concat(trackRows).join('') || '<div class="empty">还没有作品。填写左侧内容后点击开始创作，生成完成会直接出现在这里并进入底部播放器。</div>';
+      document.querySelectorAll('#queue [data-play]').forEach(btn => btn.addEventListener('click', () => {
+        const track = state.library.find(x => x.id === btn.dataset.play);
+        if (track) { setCurrent(track); playCurrent(); }
+      }));
+      document.querySelectorAll('#queue [data-download]').forEach(btn => btn.addEventListener('click', () => {
+        const track = state.library.find(x => x.id === btn.dataset.download);
+        if (track) downloadTrack(track);
+      }));
     }
 
     function renderLibrary() {
@@ -3776,6 +4171,7 @@
         state.library.unshift(track);
         setCurrent(track);
       }
+      renderQueue();
       renderLibrary();
     }
 
