@@ -1772,6 +1772,13 @@
     }
 
     /* Workbench rewrite: left creation panel, right song list, bottom player. */
+    main {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 16px 20px 118px;
+    }
+
     .page-view[data-page-view="create"] {
       min-height: calc(100vh - 140px);
     }
@@ -1799,8 +1806,8 @@
     }
 
     .page-view[data-page-view="create"] > .template-panel {
-      width: min(560px, calc(100% - 380px));
-      margin: -62px 0 12px auto;
+      width: min(560px, calc(100% - 392px));
+      margin: -58px 0 10px auto;
       background: rgba(12, 12, 15, 0.64);
       box-shadow: none;
     }
@@ -1842,42 +1849,51 @@
     }
 
     #create {
-      grid-template-columns: 292px minmax(0, 1fr);
-      gap: 14px;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
       align-items: start;
     }
 
     #create > .panel:first-child {
       position: sticky;
       top: 16px;
-      max-height: calc(100vh - 118px);
+      max-height: calc(100vh - 132px);
       overflow: auto;
       box-shadow: none;
       background: rgba(18, 18, 22, 0.92);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.34) transparent;
     }
 
     #create > .panel:first-child .panel-head {
-      padding: 12px;
+      padding: 14px 16px 10px;
+      align-items: flex-start;
     }
 
     #create > .panel:first-child .panel-head h2 {
-      font-size: 15px;
+      max-width: 150px;
+      font-size: 17px;
+      line-height: 1.18;
     }
 
     #create > .panel:first-child .status {
       font-size: 11px;
+      max-width: 150px;
+      line-height: 1.35;
+      justify-content: flex-end;
+      text-align: right;
     }
 
     #create .create-workbench {
       display: block;
-      padding: 12px;
+      padding: 14px;
     }
 
     #create .compose-main,
     #create .compose-side,
     #create .reference-card,
     #create .advanced-card {
-      padding: 12px;
+      padding: 14px;
       border-radius: 14px;
       margin-bottom: 10px;
       background: rgba(255, 255, 255, 0.045);
@@ -1886,13 +1902,13 @@
     #create .compose-main textarea,
     #create #prompt,
     #create #lyrics {
-      min-height: 104px;
+      min-height: 96px;
       max-height: 180px;
       font-size: 13px;
     }
 
     #create .lyrics-large textarea {
-      min-height: 132px;
+      min-height: 118px;
     }
 
     #create .field {
@@ -1916,7 +1932,7 @@
 
     #create #generateBtn {
       position: sticky;
-      bottom: 0;
+      bottom: 10px;
       height: 46px;
       z-index: 2;
     }
@@ -2005,7 +2021,7 @@
     }
 
     .studio > .panel:last-child {
-      min-height: calc(100vh - 178px);
+      min-height: calc(100vh - 188px);
       box-shadow: none;
       background: rgba(12, 12, 15, 0.7);
     }
@@ -2020,7 +2036,7 @@
     }
 
     #queue {
-      padding: 8px 10px 120px;
+      padding: 8px 10px 132px;
       gap: 4px;
     }
 
@@ -2083,6 +2099,10 @@
     }
 
     @media (max-width: 1260px) {
+      main {
+        padding: 14px 14px 112px;
+      }
+
       .page-view[data-page-view="create"] > .template-panel {
         width: 100%;
         margin: 0 0 12px;
@@ -2095,6 +2115,7 @@
       #create > .panel:first-child {
         position: static;
         max-height: none;
+        overflow: visible;
       }
 
       .studio > .panel:first-child {
@@ -2107,6 +2128,10 @@
     }
 
     @media (max-width: 720px) {
+      main {
+        padding: 12px 10px 112px;
+      }
+
       .page-view[data-page-view="create"] > .topbar {
         align-items: flex-start;
       }
