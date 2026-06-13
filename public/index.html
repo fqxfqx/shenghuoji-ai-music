@@ -425,6 +425,53 @@
       opacity: 0.58;
     }
 
+    .custom-hint {
+      margin-top: 8px;
+      font-size: 12px;
+    }
+
+    .toolkit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .tool-card {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.055);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .tool-card b {
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .tool-card p {
+      margin: 0;
+      color: rgba(244, 244, 245, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tool-card .btn {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    .tool-result {
+      margin-top: 12px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+
     .option-card b,
     .option-card span {
       display: block;
@@ -2329,6 +2376,7 @@
                   <option>儿童歌曲</option>
                   <option>古典跨界</option>
                 </select>
+                <input class="custom-hint" id="customStyle" placeholder="也可以自己写风格：如东北民谣、广场舞、婚礼抒情、企业宣传片配乐">
               </div>
               <div class="field compact-field">
                 <label for="usecase">用途</label>
@@ -2340,6 +2388,7 @@
                   <option>游戏循环音乐</option>
                   <option>电商直播</option>
                 </select>
+                <input class="custom-hint" id="customUsecase" placeholder="也可以自己写用途：如给孩子满月、给门店开业、给短剧片尾">
               </div>
               <div class="field compact-field">
                 <label for="songLanguage">语言</label>
@@ -2351,6 +2400,7 @@
                   <option>日语</option>
                   <option>韩语</option>
                 </select>
+                <input class="custom-hint" id="customLanguage" placeholder="也可以自己写语言/口音：如四川话、东北话、粤语+普通话">
               </div>
               <div class="field">
                 <label>情绪</label>
@@ -2385,6 +2435,7 @@
                     <option>儿童声线</option>
                     <option>低沉男声</option>
                   </select>
+                  <input class="custom-hint" id="customVoiceType" placeholder="也可以自己写声音：如沧桑男声、甜美女声、少年感、合唱团">
                 </div>
                 <div class="toggle-row">
                   <div>
@@ -2467,6 +2518,37 @@
             </div>
             <div class="panel-body queue" id="queue"></div>
           </div>
+        </div>
+      </section>
+
+      <section class="panel" id="mureka-tools">
+        <div class="panel-head">
+          <h2>创作增强工具</h2>
+          <span class="subhead">生成后继续加工：续写、延长、分析、分轨、歌词视频、局部重做、给视频图片配乐。</span>
+        </div>
+        <div class="panel-body">
+          <div class="split">
+            <div class="field">
+              <label for="toolFile">上传素材</label>
+              <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*">
+            </div>
+            <div class="field">
+              <label for="toolPrompt">加工要求</label>
+              <input id="toolPrompt" placeholder="例如：延长副歌、分析这首歌风格、导出伴奏、生成歌词视频、给这段视频配乐">
+            </div>
+          </div>
+          <div class="toolkit-grid">
+            <div class="tool-card"><b>续写歌词</b><p>歌词写到一半时，继续写下一段主歌/副歌。</p><button class="btn" data-tool-action="lyrics-extend">继续写歌词</button></div>
+            <div class="tool-card"><b>歌曲延长</b><p>把当前歌曲或上传音频继续延长，适合做完整版本。</p><button class="btn" data-tool-action="song-extend">延长歌曲</button></div>
+            <div class="tool-card"><b>人声克隆</b><p>上传已授权的人声样本，生成类似音色的新歌。</p><button class="btn" data-tool-action="vocal-cloning">克隆我的声音</button></div>
+            <div class="tool-card"><b>歌曲识别</b><p>识别上传音频的基础信息，帮助做参考创作。</p><button class="btn" data-tool-action="recognize">识别歌曲</button></div>
+            <div class="tool-card"><b>歌曲描述</b><p>分析风格、情绪、速度、乐器和适合的创作方向。</p><button class="btn" data-tool-action="describe">分析歌曲风格</button></div>
+            <div class="tool-card"><b>歌词视频</b><p>把歌曲做成可分享的歌词视频或视觉化方案。</p><button class="btn" data-tool-action="lyrics-video">生成歌词视频</button></div>
+            <div class="tool-card"><b>Stem 分轨</b><p>导出人声、伴奏、鼓、贝斯等分轨，用于二创。</p><button class="btn" data-tool-action="stem">导出分轨</button></div>
+            <div class="tool-card"><b>局部重做</b><p>只重做某一段，比如副歌、人声、前奏或结尾。</p><button class="btn" data-tool-action="region-editing">局部重做</button></div>
+            <div class="tool-card"><b>视频/图片配乐</b><p>上传图片或视频，让 AI 自动生成合适的配乐。</p><button class="btn" data-tool-action="soundtrack">生成配乐</button></div>
+          </div>
+          <div class="empty tool-result" id="toolResult">选择一个工具后，结果会显示在这里。需要音频的工具可以上传素材，也可以后续接入“使用当前播放歌曲”。</div>
         </div>
       </section>
 
@@ -3091,6 +3173,7 @@
       const children = [...main.children];
       const templatePanel = children.find(el => el.classList.contains('panel') && el.querySelector('[data-template]'));
       const createGrid = $('create');
+      const murekaTools = $('mureka-tools');
       const life = $('life-song');
       const cover = $('cover-song');
       const mvMaker = $('mv-maker');
@@ -3104,6 +3187,7 @@
       createView.appendChild(document.querySelector('.topbar'));
       if (templatePanel) createView.appendChild(templatePanel);
       if (createGrid) createView.appendChild(createGrid);
+      if (murekaTools) createView.appendChild(murekaTools);
 
       libraryView.appendChild(pageTitle('我的作品库', '查看你生成过的歌曲、版本、下载记录和商用授权。'));
       if (library) libraryView.appendChild(library);
@@ -3893,9 +3977,9 @@
           method: 'POST',
           body: JSON.stringify({
             prompt,
-            style: styleEl.value,
+            style: ($('customStyle') && $('customStyle').value.trim()) || styleEl.value,
             mood: state.selectedMood,
-            language: songLanguageEl ? songLanguageEl.value : '中文'
+            language: ($('customLanguage') && $('customLanguage').value.trim()) || (songLanguageEl ? songLanguageEl.value : '中文')
           })
         });
         lyricsEl.value = String(data.lyrics || '').trim() || buildLocalLyricsFromPrompt();
@@ -4149,6 +4233,140 @@
       showToast('MV 预告已发布到社区。');
     }
 
+    const toolLabels = {
+      'lyrics-extend': '续写歌词',
+      'song-extend': '歌曲延长',
+      'vocal-cloning': '人声克隆',
+      recognize: '歌曲识别',
+      describe: '歌曲描述',
+      'lyrics-video': '歌词视频',
+      stem: 'Stem 分轨',
+      'region-editing': '区域编辑',
+      soundtrack: '视频/图片配乐'
+    };
+
+    function toolConfig(action) {
+      const base = collectConfig();
+      const toolPrompt = $('toolPrompt') ? $('toolPrompt').value.trim() : '';
+      const title = state.current ? state.current.title : titleFrom(base);
+      return {
+        action,
+        title,
+        prompt: toolPrompt || base.prompt,
+        instruction: toolPrompt || base.prompt,
+        lyrics: lyricsEl.value.trim() || base.lyrics,
+        style: base.style,
+        usecase: base.usecase,
+        language: base.language,
+        mood: base.mood,
+        voiceType: base.voiceType,
+        vocals: base.vocals,
+        duration: base.duration,
+        styleInfluence: base.styleInfluence,
+        voiceIntensity: base.voiceIntensity,
+        providerTaskId: state.current ? (state.current.providerTaskId || '') : '',
+        song_id: state.current ? (state.current.providerTaskId || '') : '',
+        audio_url: state.current ? (state.current.remoteUrl || '') : '',
+        start_time: 0,
+        end_time: Math.min(30, base.duration || 30),
+        region_prompt: toolPrompt || '请优化这一段，让歌曲更自然、更符合当前风格。'
+      };
+    }
+
+    function collectUrls(value, out = []) {
+      if (!value) return out;
+      if (typeof value === 'string') {
+        if (/^https?:\/\/.+\.(mp3|m4a|wav|aac|ogg|mp4|mov)(\?|#|$)/i.test(value)) out.push(value);
+        return out;
+      }
+      if (Array.isArray(value)) {
+        value.forEach(item => collectUrls(item, out));
+        return out;
+      }
+      if (typeof value === 'object') {
+        Object.values(value).forEach(item => collectUrls(item, out));
+      }
+      return out;
+    }
+
+    function shortJson(value) {
+      const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+      return text.length > 1800 ? text.slice(0, 1800) + '\n...' : text;
+    }
+
+    async function runMurekaTool(action) {
+      if (!state.user) {
+        showToast('请先登录，再使用创作增强工具。');
+        return;
+      }
+      if (!state.api.ready || state.api.provider !== 'mureka') {
+        showToast('请先在 Railway 配好 Mureka API Key。');
+        return;
+      }
+      const resultBox = $('toolResult');
+      const label = toolLabels[action] || '增强工具';
+      const fileInput = $('toolFile');
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      const needsMaterial = ['song-extend', 'vocal-cloning', 'recognize', 'describe', 'lyrics-video', 'stem', 'region-editing', 'soundtrack'].includes(action);
+      if (needsMaterial && !file && !state.current) {
+        showToast('这个功能需要先上传素材，或先生成/播放一首歌曲。');
+        if (fileInput) fileInput.focus();
+        return;
+      }
+      if (resultBox) {
+        resultBox.classList.remove('empty');
+        resultBox.textContent = `${label}处理中，请稍等...`;
+      }
+      document.querySelectorAll('[data-tool-action]').forEach(button => {
+        if (button.dataset.toolAction === action) button.disabled = true;
+      });
+      try {
+        const payload = toolConfig(action);
+        let response;
+        if (file) {
+          const form = new FormData();
+          form.append('payload', JSON.stringify(payload));
+          form.append('media', file);
+          response = await fetch('/api/mureka/tool', {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: form
+          });
+        } else {
+          response = await fetch('/api/mureka/tool', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || '工具执行失败');
+        const urls = Array.from(new Set(collectUrls(data.result)));
+        if (urls.length) {
+          await addRemoteTracks({
+            id: crypto.randomUUID(),
+            title: `${label}结果`,
+            status: '完成',
+            progress: 100,
+            ...toolConfig(action)
+          }, urls);
+        }
+        if (resultBox) {
+          resultBox.innerHTML = `<b>${label}完成</b>\n${urls.length ? `已添加 ${urls.length} 个可播放结果到右侧作品区。\n\n` : ''}${escapeHtml(shortJson(data.result || data))}`;
+        }
+        showToast(urls.length ? `${label}完成，已放入作品区。` : `${label}完成，结果已显示。`);
+      } catch (error) {
+        const message = friendlyApiError(error.message || '工具执行失败');
+        if (resultBox) resultBox.textContent = `${label}失败：${message}`;
+        showToast(message);
+      } finally {
+        document.querySelectorAll('[data-tool-action]').forEach(button => {
+          if (button.dataset.toolAction === action) button.disabled = false;
+        });
+      }
+    }
+
     function collectConfig() {
       const sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
       const sampleHint = sampleFile ? `参考用户上传的采样《${sampleFile.name.replace(/\.[^.]+$/, '')}》的情绪、速度和整体氛围，但不要复制原曲旋律，不要模仿真实歌手。` : '';
@@ -4157,11 +4375,11 @@
       return {
         prompt: sampleHint ? `${userPrompt}。${sampleHint}` : userPrompt,
         lyrics: state.vocals ? (lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光') : '',
-        style: styleEl.value,
+        style: ($('customStyle') && $('customStyle').value.trim()) || styleEl.value,
         styleInfluence: styleInfluenceEl ? Number(styleInfluenceEl.value) : 70,
-        usecase: usecaseEl.value,
-        language: songLanguageEl ? songLanguageEl.value : '中文',
-        voiceType: voiceTypeEl.value,
+        usecase: ($('customUsecase') && $('customUsecase').value.trim()) || usecaseEl.value,
+        language: ($('customLanguage') && $('customLanguage').value.trim()) || (songLanguageEl ? songLanguageEl.value : '中文'),
+        voiceType: ($('customVoiceType') && $('customVoiceType').value.trim()) || voiceTypeEl.value,
         voiceIntensity: Number(voiceIntensityEl.value),
         mood: state.selectedMood,
         vocals: state.vocals,
@@ -4604,6 +4822,18 @@
     });
     if (mvGenerateBtn) mvGenerateBtn.addEventListener('click', generateMvIdea);
     if (mvToCommunityBtn) mvToCommunityBtn.addEventListener('click', publishMvPreviewToCommunity);
+    if ($('toolFile')) $('toolFile').addEventListener('change', () => {
+      const file = $('toolFile').files && $('toolFile').files[0];
+      if ($('toolResult')) {
+        $('toolResult').classList.remove('empty');
+        $('toolResult').textContent = file
+          ? `已选择素材：${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB。现在可以点击上方对应工具。`
+          : '选择一个工具后，结果会显示在这里。';
+      }
+    });
+    document.querySelectorAll('[data-tool-action]').forEach(button => {
+      button.addEventListener('click', () => runMurekaTool(button.dataset.toolAction));
+    });
 
     $('generateBtn').addEventListener('click', generate);
     $('generateTop').addEventListener('click', generate);

@@ -288,9 +288,9 @@ async function readApiPayload(req) {
     } catch {
       throw new Error('Invalid payload JSON.');
     }
-    return { body, sampleFile: parsed.files.sample || null };
+    return { body, sampleFile: parsed.files.sample || null, files: parsed.files };
   }
-  return { body: await readBody(req), sampleFile: null };
+  return { body: await readBody(req), sampleFile: null, files: {} };
 }
 
 function parseCookies(req) {
@@ -640,11 +640,12 @@ function normalizeLyrics(payload) {
 }
 
 function murekaVoicePrompt(voiceType) {
-  if (/男女|对唱|duet/i.test(voiceType)) return 'male and female duet vocals, two distinct singers';
-  if (/男|male/i.test(voiceType)) return /低沉|磁性/.test(voiceType) ? 'deep male lead vocal only, no female lead vocal' : 'male lead vocal only, no female lead vocal';
-  if (/儿童|child/i.test(voiceType)) return 'childlike vocal';
-  if (/多人|合唱|choir/i.test(voiceType)) return 'group choir vocals';
-  return /温柔/.test(voiceType) ? 'soft female lead vocal only, no male lead vocal' : 'female lead vocal only, no male lead vocal';
+  const text = String(voiceType || '');
+  if (/男女|对唱|合唱|duet/i.test(text)) return 'male and female duet vocals, two distinct singers';
+  if (/男|male/i.test(text)) return /低沉|磁性|沧桑|深沉/i.test(text) ? 'deep male lead vocal only, no female lead vocal' : 'male lead vocal only, no female lead vocal';
+  if (/儿童|童声|少年|child/i.test(text)) return 'childlike vocal, bright and clean';
+  if (/多人|合唱团|choir/i.test(text)) return 'group choir vocals';
+  return /温柔|甜美|清亮|女|female/i.test(text) ? 'female lead vocal only, no male lead vocal' : `${text || 'natural Chinese lead vocal'}, clear lead sung vocals`;
 }
 
 function murekaStylePrompt(style) {
@@ -953,11 +954,11 @@ function murekaError(data, fallback) {
 
 async function uploadMurekaFile(file, purpose) {
   const filename = String(file?.filename || '').trim();
-  if (!/\.(mp3|m4a)$/i.test(filename)) {
-    throw new Error('Mureka 参考采样目前只支持 MP3 / M4A，请先把音频转成 MP3 或 M4A 后再上传。');
+  if (!/\.(mp3|m4a|wav|mp4|mov|png|jpe?g|webp)$/i.test(filename)) {
+    throw new Error('Mureka upload supports MP3, M4A, WAV, MP4, MOV, PNG, JPG, or WEBP files.');
   }
   const form = new FormData();
-  const blob = new Blob([file.data], { type: file.contentType || 'audio/mpeg' });
+  const blob = new Blob([file.data], { type: file.contentType || 'application/octet-stream' });
   form.append('file', blob, filename);
   form.append('purpose', purpose);
   const response = await fetch('https://api.mureka.ai/v1/files/upload', {
@@ -972,6 +973,53 @@ async function uploadMurekaFile(file, purpose) {
   const id = pickMurekaFileId(data);
   if (!id) throw new Error('Mureka file upload succeeded but no file id was returned.');
   return { id, raw: data };
+}
+function firstUploadedFile(files) {
+  if (!files) return null;
+  return files.sample || files.audio || files.media || files.voice || Object.values(files)[0] || null;
+}
+
+async function callMurekaTool(action, body, file) {
+  const endpointMap = {
+    'lyrics-extend': '/v1/lyrics/extend',
+    'song-extend': '/v1/song/extend',
+    'vocal-cloning': '/v1/song/vocal-cloning',
+    recognize: '/v1/song/recognize',
+    describe: '/v1/song/describe',
+    'lyrics-video': '/v1/song/lyrics-video',
+    stem: '/v1/song/stem',
+    'region-editing': '/v1/song/region-editing',
+    soundtrack: '/v1/song/generate-soundtrack'
+  };
+  const endpoint = endpointMap[action];
+  if (!endpoint) throw new Error('Unsupported Mureka tool action.');
+  const payload = { ...body };
+  delete payload.action;
+
+  if (file) {
+    const purpose = action === 'vocal-cloning'
+      ? 'vocal_cloning'
+      : action === 'soundtrack'
+        ? 'soundtrack'
+        : 'song';
+    const uploaded = await uploadMurekaFile(file, purpose);
+    payload.upload_audio_id = payload.upload_audio_id || uploaded.id;
+    payload.audio_id = payload.audio_id || uploaded.id;
+    payload.file_id = payload.file_id || uploaded.id;
+    payload.uploaded_file = { id: uploaded.id, filename: file.filename };
+  }
+
+  const response = await fetch(`https://api.mureka.ai${endpoint}`, {
+    method: 'POST',
+    headers: {
+      Authorization: murekaAuthHeader(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(murekaError(data, `Mureka ${action} request failed`));
+  return data;
 }
 
 async function callMurekaWithReference(payload, sampleFile) {
@@ -1085,6 +1133,16 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { provider: 'openrouter', lyrics: helper.lyrics || '', helper });
     }
     throw new Error('No lyrics API configured.');
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/mureka/tool') {
+    await requireUser(req);
+    if (musicProvider() !== 'mureka') throw new Error('Mureka API is not configured.');
+    const parsed = await readApiPayload(req);
+    const action = String(parsed.body.action || '').trim();
+    const file = firstUploadedFile(parsed.files) || parsed.sampleFile;
+    const result = await callMurekaTool(action, parsed.body, file);
+    return sendJson(res, 200, { ok: true, action, result });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/auth/me') {
