@@ -464,12 +464,40 @@
       font-size: 12px;
     }
 
+    .tool-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 14px 0 10px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .tool-section-title span {
+      color: rgba(244, 244, 245, 0.58);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tool-input-note {
+      margin: 8px 0 0;
+      color: rgba(244, 244, 245, 0.62);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .tool-result {
       margin-top: 12px;
+      min-height: 72px;
       max-height: 260px;
       overflow: auto;
       white-space: pre-wrap;
       text-align: left;
+      border-style: solid;
+      border-color: rgba(34, 211, 238, 0.28);
+      background: rgba(20, 184, 166, 0.08);
     }
 
     .option-card b,
@@ -2524,18 +2552,28 @@
       <section class="panel" id="mureka-tools">
         <div class="panel-head">
           <h2>创作增强工具</h2>
-          <span class="subhead">生成后继续加工：续写、延长、分析、分轨、歌词视频、局部重做、给视频图片配乐。</span>
+          <span class="subhead">先放素材和要求，再点功能按钮，结果会显示在下方；如果生成了音频，也会进入右侧作品区。</span>
         </div>
         <div class="panel-body">
+          <div class="tool-section-title">
+            <b>1. 输入区</b>
+            <span>上传素材可选；也可以直接使用当前播放/刚生成的歌曲</span>
+          </div>
           <div class="split">
             <div class="field">
-              <label for="toolFile">上传素材</label>
+              <label for="toolFile">输入素材：上传音频 / 视频 / 图片</label>
               <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*">
+              <p class="tool-input-note">做延长、分轨、识别、歌词视频、人声克隆、配乐时，建议先上传对应素材。</p>
             </div>
             <div class="field">
-              <label for="toolPrompt">加工要求</label>
-              <input id="toolPrompt" placeholder="例如：延长副歌、分析这首歌风格、导出伴奏、生成歌词视频、给这段视频配乐">
+              <label for="toolPrompt">输入要求：你想让 AI 怎么处理</label>
+              <input id="toolPrompt" placeholder="例如：延长副歌 30 秒 / 分析这首歌风格 / 导出伴奏 / 给这段视频配温暖民谣">
+              <p class="tool-input-note">这里会自动结合左侧的歌词、风格、语言、男声女声等设置。</p>
             </div>
+          </div>
+          <div class="tool-section-title">
+            <b>2. 选择功能</b>
+            <span>点击一个按钮开始处理</span>
           </div>
           <div class="toolkit-grid">
             <div class="tool-card"><b>续写歌词</b><p>歌词写到一半时，继续写下一段主歌/副歌。</p><button class="btn" data-tool-action="lyrics-extend">继续写歌词</button></div>
@@ -2548,7 +2586,11 @@
             <div class="tool-card"><b>局部重做</b><p>只重做某一段，比如副歌、人声、前奏或结尾。</p><button class="btn" data-tool-action="region-editing">局部重做</button></div>
             <div class="tool-card"><b>视频/图片配乐</b><p>上传图片或视频，让 AI 自动生成合适的配乐。</p><button class="btn" data-tool-action="soundtrack">生成配乐</button></div>
           </div>
-          <div class="empty tool-result" id="toolResult">选择一个工具后，结果会显示在这里。需要音频的工具可以上传素材，也可以后续接入“使用当前播放歌曲”。</div>
+          <div class="tool-section-title">
+            <b>3. 输出结果</b>
+            <span>文字结果在这里；音频结果会自动放到右侧作品区和底部播放器</span>
+          </div>
+          <div class="empty tool-result" id="toolResult">还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。生成出的音频会出现在右侧“工作区作品”，可以直接播放和下载。</div>
         </div>
       </section>
 
@@ -4827,8 +4869,8 @@
       if ($('toolResult')) {
         $('toolResult').classList.remove('empty');
         $('toolResult').textContent = file
-          ? `已选择素材：${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB。现在可以点击上方对应工具。`
-          : '选择一个工具后，结果会显示在这里。';
+          ? `输入素材已选择：${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB。\n下一步：在“输入要求”里写清楚想怎么处理，然后点击上方功能按钮。\n输出结果会继续显示在这里；如果生成音频，会自动进入右侧作品区。`
+          : '还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。';
       }
     });
     document.querySelectorAll('[data-tool-action]').forEach(button => {
