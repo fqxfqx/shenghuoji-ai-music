@@ -895,6 +895,18 @@ function pickLyrics(raw) {
 }
 
 async function callMurekaLyrics(payload) {
+  const userPrompt = String(payload.prompt || payload.story || '').trim();
+  const language = String(payload.language || '中文').trim();
+  const style = String(payload.style || '中文流行').trim();
+  const mood = String(payload.mood || '真诚温暖').trim();
+  const prompt = [
+    `Write original ${language} song lyrics.`,
+    `Topic: ${userPrompt}.`,
+    `Style: ${style}.`,
+    `Mood: ${mood}.`,
+    'Use clear song sections like [Verse], [Chorus], [Bridge].',
+    'Strictly follow the topic and language. Do not write about unrelated scenery, fantasy, or forests unless the topic asks for it.'
+  ].join(' ');
   const response = await fetch('https://api.mureka.ai/v1/lyrics/generate', {
     method: 'POST',
     headers: {
@@ -902,9 +914,7 @@ async function callMurekaLyrics(payload) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      prompt: `${String(payload.prompt || payload.story || '').trim()} Language: ${String(payload.language || '中文').trim()}.`,
-      style: String(payload.style || '中文流行').trim(),
-      mood: String(payload.mood || '真诚温暖').trim()
+      prompt
     })
   });
   const data = await response.json();
