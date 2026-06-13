@@ -364,6 +364,13 @@
       grid-template-columns: repeat(3, 1fr);
     }
 
+    .mode-segment {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
     .voice-chip,
     .option-card {
       border: 1px solid rgba(255, 255, 255, 0.11);
@@ -380,12 +387,42 @@
       font-weight: 800;
     }
 
+    .mode-chip {
+      min-height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(244, 244, 245, 0.78);
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 800;
+    }
+
     .voice-chip.active,
+    .mode-chip.active,
     .option-card.active {
       border-color: rgba(45, 212, 191, 0.75);
       background: rgba(20, 184, 166, 0.18);
       color: #fff;
       box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.1);
+    }
+
+    .lyrics-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .lyrics-tools .btn {
+      width: auto;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .instrumental-mode #lyrics {
+      opacity: 0.58;
     }
 
     .option-card b,
@@ -2244,12 +2281,19 @@
           <div class="panel-body create-workbench">
             <div class="compose-main">
               <div class="section-kicker"><span>一键创作</span><span>可上传采样，也可直接写歌</span></div>
+              <div class="mode-segment" id="generationMode">
+                <button class="mode-chip active" type="button" data-vocals="true">真人演唱</button>
+                <button class="mode-chip" type="button" data-vocals="false">纯音乐</button>
+              </div>
               <div class="field">
                 <label for="prompt">关键词 / 创作想法</label>
                 <textarea id="prompt" placeholder="例如：送给妈妈的生日歌，温暖女声，歌词朴实，像儿女认真说心里话。也可以写：参考我上传的采样，做一首相似氛围的新歌。"></textarea>
               </div>
               <div class="field lyrics-large">
-                <label for="lyrics">歌词</label>
+                <div class="lyrics-tools">
+                  <label for="lyrics">歌词</label>
+                  <button class="btn" id="generateLyricsBtn" type="button">智能写歌词</button>
+                </div>
                 <textarea id="lyrics" placeholder="可选。想让歌曲唱具体内容，就把歌词写在这里；不写时系统会根据关键词自动补歌词。"></textarea>
               </div>
               <div class="reference-card">
@@ -2295,6 +2339,17 @@
                   <option>播客片头</option>
                   <option>游戏循环音乐</option>
                   <option>电商直播</option>
+                </select>
+              </div>
+              <div class="field compact-field">
+                <label for="songLanguage">语言</label>
+                <select id="songLanguage">
+                  <option>中文</option>
+                  <option>英文</option>
+                  <option>中英混合</option>
+                  <option>粤语</option>
+                  <option>日语</option>
+                  <option>韩语</option>
                 </select>
               </div>
               <div class="field">
@@ -2925,6 +2980,7 @@
     const voiceIntensityEl = $('voiceIntensity');
     const styleInfluenceEl = $('styleInfluence');
     const lyricsEl = $('lyrics');
+    const songLanguageEl = $('songLanguage');
     const durationEl = $('duration');
     const durationValue = $('durationValue');
     const durationLabel = $('durationLabel');
@@ -3804,6 +3860,59 @@
       $('helperShareText').textContent = state.lastHelper.shareText;
     }
 
+    function buildLocalLyricsFromPrompt() {
+      const prompt = promptEl.value.trim() || '普通人的生活故事';
+      const language = songLanguageEl ? songLanguageEl.value : '中文';
+      if (language === '英文') {
+        return `[Verse]\nI keep a little light inside the ordinary days\nEvery quiet word becomes a melody that stays\n\n[Chorus]\nSing it out, let the story find the sky\nEvery simple heartbeat learns to fly`;
+      }
+      if (language === '中英混合') {
+        return `[Verse]\n把${prompt.slice(0, 16)}唱成今晚的光\nEvery little moment keeps me moving on\n\n[Chorus]\n让心里的话慢慢发亮\nSing it loud, we are not alone`;
+      }
+      return `[主歌]\n我把${prompt.slice(0, 18)}轻轻唱给你听\n那些没说出口的话也有回音\n\n[副歌]\n让这一首歌陪你走过风和雨\n把平凡日子唱成最真的旋律`;
+    }
+
+    async function generateLyricsFromPrompt() {
+      if (!state.vocals) {
+        showToast('当前是纯音乐模式，不需要生成歌词。');
+        return;
+      }
+      const prompt = promptEl.value.trim();
+      if (!prompt) {
+        showToast('先写一句创作想法，再生成歌词。');
+        promptEl.focus();
+        return;
+      }
+      const btn = $('generateLyricsBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+      }
+      try {
+        const data = await apiFetch('/api/lyrics', {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt,
+            style: styleEl.value,
+            mood: state.selectedMood,
+            language: songLanguageEl ? songLanguageEl.value : '中文'
+          })
+        });
+        lyricsEl.value = String(data.lyrics || '').trim() || buildLocalLyricsFromPrompt();
+        updateAutoDuration();
+        showToast(data.provider === 'mureka' ? '已用 Mureka 自动生成歌词。' : '已自动生成歌词。');
+      } catch (error) {
+        lyricsEl.value = buildLocalLyricsFromPrompt();
+        updateAutoDuration();
+        showToast('歌词 API 暂不可用，已用本地规则生成歌词草稿。');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '智能写歌词';
+        }
+      }
+    }
+
     function shareHelperToCommunity() {
       if (!state.lastHelper) {
         showToast('先用智能生成提示词整理一个故事。');
@@ -4047,10 +4156,11 @@
       const durationInfo = updateAutoDuration();
       return {
         prompt: sampleHint ? `${userPrompt}。${sampleHint}` : userPrompt,
-        lyrics: lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光',
+        lyrics: state.vocals ? (lyricsEl.value.trim() || '让灵感响起来，让每一秒都有光') : '',
         style: styleEl.value,
         styleInfluence: styleInfluenceEl ? Number(styleInfluenceEl.value) : 70,
         usecase: usecaseEl.value,
+        language: songLanguageEl ? songLanguageEl.value : '中文',
         voiceType: voiceTypeEl.value,
         voiceIntensity: Number(voiceIntensityEl.value),
         mood: state.selectedMood,
@@ -4280,10 +4390,33 @@
       state.selectedMood = btn.textContent.trim();
     }));
 
+    function setVocalMode(vocals) {
+      state.vocals = !!vocals;
+      document.body.classList.toggle('instrumental-mode', !state.vocals);
+      document.querySelectorAll('#generationMode .mode-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.vocals === String(state.vocals));
+      });
+      if ($('vocalSwitch')) {
+        $('vocalSwitch').classList.toggle('on', state.vocals);
+        $('vocalSwitch').setAttribute('aria-checked', String(state.vocals));
+      }
+      if ($('generateLyricsBtn')) $('generateLyricsBtn').disabled = !state.vocals;
+      if (lyricsEl) {
+        lyricsEl.placeholder = state.vocals
+          ? '可选。想让歌曲唱具体内容，就把歌词写在这里；不写时系统会根据关键词自动补歌词。'
+          : '纯音乐模式不需要歌词；系统会根据关键词、风格、用途生成无 vocals 的配乐。';
+      }
+      document.querySelectorAll('#voiceQuick .voice-chip, #voiceType, #voiceIntensity').forEach(el => {
+        el.disabled = !state.vocals;
+      });
+    }
+
+    document.querySelectorAll('#generationMode .mode-chip').forEach(btn => btn.addEventListener('click', () => {
+      setVocalMode(btn.dataset.vocals === 'true');
+    }));
+
     $('vocalSwitch').addEventListener('click', () => {
-      state.vocals = !state.vocals;
-      $('vocalSwitch').classList.toggle('on', state.vocals);
-      $('vocalSwitch').setAttribute('aria-checked', String(state.vocals));
+      setVocalMode(!state.vocals);
     });
 
     promptEl.addEventListener('input', updateAutoDuration);
@@ -4410,6 +4543,7 @@
     const mvGenerateBtn = $('mvGenerateBtn');
     const mvToCommunityBtn = $('mvToCommunityBtn');
     if (smartPromptBtn) smartPromptBtn.addEventListener('click', smartGeneratePrompt);
+    if ($('generateLyricsBtn')) $('generateLyricsBtn').addEventListener('click', generateLyricsFromPrompt);
     if (publishPostBtn) publishPostBtn.addEventListener('click', publishPost);
     if (storyToPostBtn) storyToPostBtn.addEventListener('click', publishStoryToCommunity);
     if (shareHelperBtn) shareHelperBtn.addEventListener('click', shareHelperToCommunity);
@@ -4487,6 +4621,7 @@
     bindAuthButtons();
     bindProfileMenu();
     renderProfileSummary();
+    setVocalMode(state.vocals);
     renderQueue();
     renderLibrary();
     renderCommunity();

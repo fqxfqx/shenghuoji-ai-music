@@ -693,6 +693,7 @@ function buildMurekaPrompt(payload) {
   const mood = String(payload.mood || '真诚温暖').trim();
   const usecase = String(payload.usecase || '生活写歌').trim();
   const voiceType = String(payload.voiceType || '自然中文人声').trim();
+  const language = String(payload.language || '中文').trim();
   const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
   const voicePrompt = murekaVoicePrompt(voiceType);
@@ -702,6 +703,21 @@ function buildMurekaPrompt(payload) {
   const durationSource = payload.durationMode === 'sample'
     ? `match the uploaded reference audio length, about ${targetDuration} seconds`
     : `arrange the full song around the lyric length, about ${targetDuration} seconds`;
+  if (payload.vocals === false) {
+    return [
+      `Primary genre and arrangement: ${stylePrompt}`,
+      `Mood: ${moodPrompt}`,
+      'instrumental music only, no vocals, no singing, no spoken voice',
+      'full instrumental track with clear intro, verse-like development, hook section, and ending',
+      durationSource,
+      `style influence ${styleInfluence} percent`,
+      `language: ${language}`,
+      `use case: ${usecase}`,
+      `user direction: ${userPrompt}`,
+      'strictly follow the selected genre',
+      'must be instrumental only'
+    ].join(', ');
+  }
   return [
     `Primary genre and arrangement: ${stylePrompt}`,
     `Mood: ${moodPrompt}`,
@@ -710,6 +726,7 @@ function buildMurekaPrompt(payload) {
     'full song, verse and chorus, radio-ready mix',
     durationSource,
     `style influence ${styleInfluence} percent`,
+    `language: ${language}`,
     `use case: ${usecase}`,
     `user direction: ${userPrompt}`,
     'strictly follow the selected genre and selected vocal gender',
@@ -846,6 +863,58 @@ async function callMureka(payload, options = {}) {
   return data;
 }
 
+async function callMurekaInstrumental(payload) {
+  const model = process.env.MUREKA_MODEL || 'auto';
+  const response = await fetch('https://api.mureka.ai/v1/instrumental/generate', {
+    method: 'POST',
+    headers: {
+      Authorization: murekaAuthHeader(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      prompt: murekaPrompt({ ...payload, vocals: false }),
+      n: 1
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka instrumental request failed'));
+  data._generation_type = 'instrumental';
+  return data;
+}
+
+function pickLyrics(raw) {
+  return raw?.lyrics
+    || raw?.data?.lyrics
+    || raw?.result?.lyrics
+    || raw?.text
+    || raw?.data?.text
+    || raw?.result?.text
+    || raw?.choices?.[0]?.message?.content
+    || '';
+}
+
+async function callMurekaLyrics(payload) {
+  const response = await fetch('https://api.mureka.ai/v1/lyrics/generate', {
+    method: 'POST',
+    headers: {
+      Authorization: murekaAuthHeader(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      prompt: `${String(payload.prompt || payload.story || '').trim()} Language: ${String(payload.language || '中文').trim()}.`,
+      style: String(payload.style || '中文流行').trim(),
+      mood: String(payload.mood || '真诚温暖').trim()
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(murekaError(data, 'Mureka lyrics request failed'));
+  return {
+    lyrics: pickLyrics(data),
+    raw: data
+  };
+}
+
 function murekaPrompt(payload) {
   return buildMurekaPrompt(payload).slice(0, 1024);
 }
@@ -896,6 +965,7 @@ async function uploadMurekaFile(file, purpose) {
 }
 
 async function callMurekaWithReference(payload, sampleFile) {
+  if (payload.vocals === false) return callMurekaInstrumental(payload);
   if (!sampleFile) return callMureka(payload);
   const uploaded = await uploadMurekaFile(sampleFile, 'remix');
   const lyrics = normalizeLyrics(payload);
@@ -922,8 +992,9 @@ async function callMurekaWithReference(payload, sampleFile) {
   return data;
 }
 
-async function queryMurekaTask(providerTaskId) {
-  const response = await fetch(`https://api.mureka.ai/v1/song/query/${encodeURIComponent(providerTaskId)}`, {
+async function queryMurekaTask(providerTaskId, queryKind = 'song') {
+  const path = queryKind === 'instrumental' ? 'instrumental' : 'song';
+  const response = await fetch(`https://api.mureka.ai/v1/${path}/query/${encodeURIComponent(providerTaskId)}`, {
     method: 'GET',
     headers: {
       Authorization: murekaAuthHeader(),
@@ -986,6 +1057,24 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const helper = await callOpenRouter(body);
     return sendJson(res, 200, { helper });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/lyrics') {
+    const body = await readBody(req);
+    const provider = musicProvider();
+    if (provider === 'mureka') {
+      const result = await callMurekaLyrics(body);
+      return sendJson(res, 200, { provider: 'mureka', lyrics: result.lyrics, raw: result.raw });
+    }
+    if (process.env.OPENROUTER_API_KEY) {
+      const helper = await callOpenRouter({
+        story: body.prompt || body.story || '',
+        theme: body.style || '中文歌曲',
+        tone: body.mood || '真诚自然'
+      });
+      return sendJson(res, 200, { provider: 'openrouter', lyrics: helper.lyrics || '', helper });
+    }
+    throw new Error('No lyrics API configured.');
   }
 
   if (req.method === 'GET' && url.pathname === '/api/auth/me') {
@@ -1093,10 +1182,12 @@ async function handleApi(req, res, url) {
     const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaWithReference(body, sampleFile);
     const audioUrls = findAudioUrls(raw);
     const id = crypto.randomUUID();
+    const queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
     const task = {
       id,
       userId: user.id,
       provider,
+      queryKind,
       providerTaskId: pickProviderTaskId(raw, id),
       status: audioUrls.length ? 'completed' : pickStatus(raw, 'processing'),
       title: String(body.prompt || 'AI Song').slice(0, 28),
@@ -1117,7 +1208,7 @@ async function handleApi(req, res, url) {
     if (!task) return sendJson(res, 404, { error: 'Task not found' });
     if (task.userId !== user.id) return sendJson(res, 403, { error: 'Forbidden' });
     if (task.provider === 'mureka' && task.providerTaskId && (!task.audioUrls.length || !/complete|success|done|finished/i.test(String(task.status)))) {
-      const providerRaw = await queryMurekaTask(task.providerTaskId);
+      const providerRaw = await queryMurekaTask(task.providerTaskId, task.queryKind);
       task.raw = providerRaw;
       task.status = pickStatus(providerRaw, task.status);
       task.audioUrls = findAudioUrls(providerRaw);
