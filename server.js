@@ -803,10 +803,16 @@ function songHelperMessages(payload) {
   const story = String(payload.story || payload.prompt || '').trim();
   const theme = String(payload.theme || payload.style || '中文歌曲').trim();
   const tone = String(payload.tone || payload.mood || '真诚自然').trim();
+  const strict = payload.strict === true;
   return [
     {
       role: 'system',
-      content: '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。必须紧扣用户给出的故事、对象、用途和情绪，不允许写成泛泛的生活感悟。歌词要像真实的人在说心里话，适合直接交给音乐生成模型演唱。不要模仿真实歌手，不要改写已有歌曲。'
+      content: [
+        '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。',
+        '必须紧扣用户给出的故事、对象、用途和情绪，不允许写成泛泛的生活感悟，不允许擅自改成失恋、离别、遗忘、铺路等无关主题。',
+        '歌词要像真实的人在说心里话，适合直接交给音乐生成模型演唱。不要模仿真实歌手，不要改写已有歌曲。',
+        strict ? '这是一次纠偏重试：上一次结果跑题了。你必须在 title、prompt、lyrics、shareText 中明确体现用户故事里的核心对象和用途。' : ''
+      ].filter(Boolean).join(' ')
     },
     {
       role: 'user',
@@ -819,6 +825,19 @@ function songHelperMessages(payload) {
       ].join('\n')
     }
   ];
+}
+
+function extractChineseKeywords(text) {
+  const value = String(text || '');
+  const fixed = ['妈妈', '母亲', '爸爸', '父亲', '生日', '婚礼', '孩子', '女儿', '儿子', '爱人', '家乡', '开业', '品牌'];
+  return fixed.filter(word => value.includes(word));
+}
+
+function helperMatchesRequest(helper, payload) {
+  const keywords = extractChineseKeywords(`${payload.story || payload.prompt || ''} ${payload.theme || payload.style || ''}`);
+  if (!keywords.length) return true;
+  const output = `${helper?.title || ''} ${helper?.prompt || ''} ${helper?.lyrics || ''} ${helper?.shareText || ''}`;
+  return keywords.some(word => output.includes(word));
 }
 
 async function callDeepSeek(payload) {
@@ -841,6 +860,13 @@ async function callDeepSeek(payload) {
   if (!response.ok) throw new Error(data.error?.message || 'DeepSeek request failed');
   const content = data.choices?.[0]?.message?.content || '{}';
   return JSON.parse(cleanJsonContent(content));
+}
+
+async function callDeepSeekChecked(payload) {
+  const helper = await callDeepSeek(payload);
+  if (helperMatchesRequest(helper, payload)) return helper;
+  const retry = await callDeepSeek({ ...payload, strict: true });
+  return retry;
 }
 
 async function callOpenRouter(payload) {
@@ -870,7 +896,7 @@ async function callOpenRouter(payload) {
 async function callTextModel(payload) {
   const provider = textModelProvider();
   if (provider === 'deepseek') {
-    const helper = await callDeepSeek(payload);
+    const helper = await callDeepSeekChecked(payload);
     return { provider, helper };
   }
   if (provider === 'openrouter') {
