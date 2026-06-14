@@ -430,20 +430,83 @@
       font-size: 12px;
     }
 
+    .enhance-workbench {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.9fr) minmax(420px, 1.35fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .tool-input-panel,
+    .tool-action-panel,
+    .tool-output-panel {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+        rgba(15, 15, 18, 0.72);
+      padding: 14px;
+    }
+
+    .tool-input-panel {
+      position: sticky;
+      top: 12px;
+    }
+
+    .tool-output-panel {
+      grid-column: 1 / -1;
+    }
+
+    .tool-step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      margin-right: 8px;
+      background: linear-gradient(135deg, #14b8a6, #8b5cf6);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .tool-choice-group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tool-group-label {
+      margin-top: 12px;
+      color: rgba(244, 244, 245, 0.62);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
     .toolkit-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
 
     .tool-card {
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
+      border-radius: 12px;
       padding: 12px;
-      background: rgba(255, 255, 255, 0.055);
+      background: rgba(255, 255, 255, 0.052);
       display: grid;
       gap: 8px;
       align-content: start;
+      min-height: 116px;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .tool-card:hover {
+      border-color: rgba(45, 212, 191, 0.42);
+      background: rgba(20, 184, 166, 0.09);
+      transform: translateY(-1px);
     }
 
     .tool-card b {
@@ -462,6 +525,7 @@
       width: 100%;
       padding: 8px 10px;
       font-size: 12px;
+      align-self: end;
     }
 
     .tool-section-title {
@@ -481,6 +545,11 @@
       font-weight: 600;
     }
 
+    .tool-section-title b {
+      display: inline-flex;
+      align-items: center;
+    }
+
     .tool-input-note {
       margin: 8px 0 0;
       color: rgba(244, 244, 245, 0.62);
@@ -489,7 +558,6 @@
     }
 
     .tool-result {
-      margin-top: 12px;
       min-height: 72px;
       max-height: 260px;
       overflow: auto;
@@ -1714,7 +1782,9 @@
       .nav { grid-template-columns: repeat(4, auto); }
       .grid { grid-template-columns: 1fr; }
       .create-workbench { grid-template-columns: 1fr; }
+      .enhance-workbench { grid-template-columns: 1fr; }
       .compose-side { position: static; }
+      .tool-input-panel { position: static; }
       .template-grid,
       .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .life-grid,
@@ -1810,7 +1880,10 @@
       .compose-main,
       .compose-side,
       .reference-card,
-      .advanced-card {
+      .advanced-card,
+      .tool-input-panel,
+      .tool-action-panel,
+      .tool-output-panel {
         padding: 12px;
         gap: 10px;
       }
@@ -1827,6 +1900,8 @@
       .cover { aspect-ratio: 1 / 1; }
       .split,
       .create-workbench,
+      .enhance-workbench,
+      .toolkit-grid,
       .business,
       .life-grid,
       .cover-layout,
@@ -1845,6 +1920,13 @@
         scroll-snap-align: start;
       }
       .feature-grid { grid-template-columns: 1fr; }
+      .tool-card {
+        min-height: auto;
+      }
+      .tool-section-title {
+        align-items: flex-start;
+        flex-direction: column;
+      }
       .topbar::before,
       .topbar::after { display: none; }
       .template {
@@ -2555,42 +2637,57 @@
           <span class="subhead">先放素材和要求，再点功能按钮，结果会显示在下方；如果生成了音频，也会进入右侧作品区。</span>
         </div>
         <div class="panel-body">
-          <div class="tool-section-title">
-            <b>1. 输入区</b>
-            <span>上传素材可选；也可以直接使用当前播放/刚生成的歌曲</span>
-          </div>
-          <div class="split">
-            <div class="field">
-              <label for="toolFile">输入素材：上传音频 / 视频 / 图片</label>
-              <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*">
-              <p class="tool-input-note">做延长、分轨、识别、歌词视频、人声克隆、配乐时，建议先上传对应素材。</p>
+          <div class="enhance-workbench">
+            <div class="tool-input-panel">
+              <div class="tool-section-title">
+                <b><span class="tool-step">1</span>输入内容</b>
+                <span>可用当前歌曲</span>
+              </div>
+              <div class="tool-choice-group">
+                <div class="field">
+                  <label for="toolFile">上传素材</label>
+                  <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*">
+                  <p class="tool-input-note">支持音频、视频、图片。做延长、分轨、识别、歌词视频、人声克隆、配乐时，建议先上传对应素材。</p>
+                </div>
+                <div class="field">
+                  <label for="toolPrompt">加工要求</label>
+                  <input id="toolPrompt" placeholder="例如：延长副歌 30 秒 / 分析风格 / 导出伴奏 / 给视频配温暖民谣">
+                  <p class="tool-input-note">这里会自动结合左侧的歌词、风格、语言、男声女声等设置。</p>
+                </div>
+              </div>
             </div>
-            <div class="field">
-              <label for="toolPrompt">输入要求：你想让 AI 怎么处理</label>
-              <input id="toolPrompt" placeholder="例如：延长副歌 30 秒 / 分析这首歌风格 / 导出伴奏 / 给这段视频配温暖民谣">
-              <p class="tool-input-note">这里会自动结合左侧的歌词、风格、语言、男声女声等设置。</p>
+            <div class="tool-action-panel">
+              <div class="tool-section-title">
+                <b><span class="tool-step">2</span>选择功能</b>
+                <span>点一个按钮开始处理</span>
+              </div>
+              <div class="tool-group-label">写词与歌曲加工</div>
+              <div class="toolkit-grid">
+                <div class="tool-card"><b>续写歌词</b><p>歌词写到一半时，继续写下一段主歌/副歌。</p><button class="btn" data-tool-action="lyrics-extend">继续写歌词</button></div>
+                <div class="tool-card"><b>歌曲延长</b><p>把当前歌曲或上传音频继续延长，适合做完整版本。</p><button class="btn" data-tool-action="song-extend">延长歌曲</button></div>
+                <div class="tool-card"><b>局部重做</b><p>只重做某一段，比如副歌、人声、前奏或结尾。</p><button class="btn" data-tool-action="region-editing">局部重做</button></div>
+                <div class="tool-card"><b>人声克隆</b><p>上传已授权的人声样本，生成类似音色的新歌。</p><button class="btn" data-tool-action="vocal-cloning">克隆我的声音</button></div>
+              </div>
+              <div class="tool-group-label">分析与拆分</div>
+              <div class="toolkit-grid">
+                <div class="tool-card"><b>歌曲识别</b><p>识别上传音频的基础信息，帮助做参考创作。</p><button class="btn" data-tool-action="recognize">识别歌曲</button></div>
+                <div class="tool-card"><b>歌曲描述</b><p>分析风格、情绪、速度、乐器和适合的创作方向。</p><button class="btn" data-tool-action="describe">分析歌曲风格</button></div>
+                <div class="tool-card"><b>Stem 分轨</b><p>导出人声、伴奏、鼓、贝斯等分轨，用于二创。</p><button class="btn" data-tool-action="stem">导出分轨</button></div>
+                <div class="tool-card"><b>歌词视频</b><p>把歌曲做成可分享的歌词视频或视觉化方案。</p><button class="btn" data-tool-action="lyrics-video">生成歌词视频</button></div>
+              </div>
+              <div class="tool-group-label">视频 / 图片配乐</div>
+              <div class="toolkit-grid">
+                <div class="tool-card"><b>视频/图片配乐</b><p>上传图片或视频，让 AI 自动生成合适的配乐。</p><button class="btn" data-tool-action="soundtrack">生成配乐</button></div>
+              </div>
+            </div>
+            <div class="tool-output-panel">
+              <div class="tool-section-title">
+                <b><span class="tool-step">3</span>输出结果</b>
+                <span>音频结果会自动放到右侧作品区</span>
+              </div>
+              <div class="empty tool-result" id="toolResult">还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。生成出的音频会出现在右侧“工作区作品”，可以直接播放和下载。</div>
             </div>
           </div>
-          <div class="tool-section-title">
-            <b>2. 选择功能</b>
-            <span>点击一个按钮开始处理</span>
-          </div>
-          <div class="toolkit-grid">
-            <div class="tool-card"><b>续写歌词</b><p>歌词写到一半时，继续写下一段主歌/副歌。</p><button class="btn" data-tool-action="lyrics-extend">继续写歌词</button></div>
-            <div class="tool-card"><b>歌曲延长</b><p>把当前歌曲或上传音频继续延长，适合做完整版本。</p><button class="btn" data-tool-action="song-extend">延长歌曲</button></div>
-            <div class="tool-card"><b>人声克隆</b><p>上传已授权的人声样本，生成类似音色的新歌。</p><button class="btn" data-tool-action="vocal-cloning">克隆我的声音</button></div>
-            <div class="tool-card"><b>歌曲识别</b><p>识别上传音频的基础信息，帮助做参考创作。</p><button class="btn" data-tool-action="recognize">识别歌曲</button></div>
-            <div class="tool-card"><b>歌曲描述</b><p>分析风格、情绪、速度、乐器和适合的创作方向。</p><button class="btn" data-tool-action="describe">分析歌曲风格</button></div>
-            <div class="tool-card"><b>歌词视频</b><p>把歌曲做成可分享的歌词视频或视觉化方案。</p><button class="btn" data-tool-action="lyrics-video">生成歌词视频</button></div>
-            <div class="tool-card"><b>Stem 分轨</b><p>导出人声、伴奏、鼓、贝斯等分轨，用于二创。</p><button class="btn" data-tool-action="stem">导出分轨</button></div>
-            <div class="tool-card"><b>局部重做</b><p>只重做某一段，比如副歌、人声、前奏或结尾。</p><button class="btn" data-tool-action="region-editing">局部重做</button></div>
-            <div class="tool-card"><b>视频/图片配乐</b><p>上传图片或视频，让 AI 自动生成合适的配乐。</p><button class="btn" data-tool-action="soundtrack">生成配乐</button></div>
-          </div>
-          <div class="tool-section-title">
-            <b>3. 输出结果</b>
-            <span>文字结果在这里；音频结果会自动放到右侧作品区和底部播放器</span>
-          </div>
-          <div class="empty tool-result" id="toolResult">还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。生成出的音频会出现在右侧“工作区作品”，可以直接播放和下载。</div>
         </div>
       </section>
 
@@ -2947,7 +3044,7 @@
             <div class="api-steps">
               <span>入口：生活写歌 → 智能生成提示词</span>
               <span>接口：POST /api/ai/song-helper</span>
-              <span>配置：OPENROUTER_API_KEY</span>
+              <span>配置：DEEPSEEK_API_KEY，备用 OPENROUTER_API_KEY</span>
             </div>
           </div>
           <div class="api-card">
@@ -3348,7 +3445,7 @@
     function renderApiStatus() {
       const textReady = !!state.api.textModelReady;
       const musicReady = !!state.api.ready;
-      const textLabel = textReady ? '已连接' : '本地规则';
+      const textLabel = textReady ? '已连接：' + (state.api.textModelProvider || 'text') : '本地规则';
       const musicLabel = musicReady ? '已连接：' + state.api.provider : '本地演示';
       const textStatus = $('textApiStatus');
       const musicStatus = $('musicApiStatus');

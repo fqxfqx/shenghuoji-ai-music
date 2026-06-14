@@ -785,6 +785,55 @@ async function listUserSongs(userId) {
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
+function cleanJsonContent(content) {
+  return String(content || '{}')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+}
+
+function textModelProvider() {
+  if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
+  if (process.env.OPENROUTER_API_KEY) return 'openrouter';
+  return null;
+}
+
+function songHelperMessages(payload) {
+  return [
+    {
+      role: 'system',
+      content: '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。中文要自然、朴素、适合真实生活写歌。不要模仿真实歌手，不要改写已有歌曲。'
+    },
+    {
+      role: 'user',
+      content: `故事/需求：${payload.story || payload.prompt || ''}\n主题/风格：${payload.theme || payload.style || '中文歌曲'}\n情绪/口吻：${payload.tone || payload.mood || '真诚自然'}\n请整理成可直接生成歌曲的提示词和歌词草稿。`
+    }
+  ];
+}
+
+async function callDeepSeek(payload) {
+  if (!process.env.DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY is missing.');
+  const model = process.env.DEEPSEEK_TEXT_MODEL || 'deepseek-chat';
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      response_format: { type: 'json_object' },
+      temperature: 0.8,
+      messages: songHelperMessages(payload)
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || 'DeepSeek request failed');
+  const content = data.choices?.[0]?.message?.content || '{}';
+  return JSON.parse(cleanJsonContent(content));
+}
+
 async function callOpenRouter(payload) {
   if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is missing.');
   const model = process.env.OPENROUTER_TEXT_MODEL || 'openrouter/free';
@@ -800,22 +849,26 @@ async function callOpenRouter(payload) {
       model,
       response_format: { type: 'json_object' },
       temperature: 0.8,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a Chinese songwriting assistant for ordinary people. Return only valid JSON with fields: title, prompt, lyrics, style, mood, voiceType, duration, shareText. Use warm plain Chinese. Do not imitate real singers or existing songs.'
-        },
-        {
-          role: 'user',
-          content: `Story: ${payload.story}\nTheme: ${payload.theme}\nTone: ${payload.tone}\nTurn this into a song prompt and lyric draft.`
-        }
-      ]
+      messages: songHelperMessages(payload)
     })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || 'OpenRouter request failed');
   const content = data.choices?.[0]?.message?.content || '{}';
-  return JSON.parse(content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, ''));
+  return JSON.parse(cleanJsonContent(content));
+}
+
+async function callTextModel(payload) {
+  const provider = textModelProvider();
+  if (provider === 'deepseek') {
+    const helper = await callDeepSeek(payload);
+    return { provider, helper };
+  }
+  if (provider === 'openrouter') {
+    const helper = await callOpenRouter(payload);
+    return { provider, helper };
+  }
+  throw new Error('No text model API configured.');
 }
 
 async function callMiniMax(payload) {
@@ -1081,13 +1134,14 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/config') {
     const provider = musicProvider();
     const databaseConnected = await initDb();
+    const textProvider = textModelProvider();
     return sendJson(res, 200, {
       provider,
       ready: provider !== 'demo',
       databaseReady: databaseConnected,
       databaseProvider: databaseConnected ? 'postgresql' : 'json-file',
-      textModelReady: !!process.env.OPENROUTER_API_KEY,
-      textModelProvider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'local',
+      textModelReady: !!textProvider,
+      textModelProvider: textProvider || 'local',
       coverReady: !!process.env.COVER_API_KEY,
       coverProvider: process.env.COVER_API_PROVIDER || 'local-plan',
       videoReady: !!process.env.VIDEO_API_KEY,
@@ -1113,24 +1167,25 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'POST' && url.pathname === '/api/ai/song-helper') {
     const body = await readBody(req);
-    const helper = await callOpenRouter(body);
-    return sendJson(res, 200, { helper });
+    const result = await callTextModel(body);
+    return sendJson(res, 200, { provider: result.provider, helper: result.helper });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/lyrics') {
     const body = await readBody(req);
-    const provider = musicProvider();
-    if (provider === 'mureka') {
-      const result = await callMurekaLyrics(body);
-      return sendJson(res, 200, { provider: 'mureka', lyrics: result.lyrics, raw: result.raw });
-    }
-    if (process.env.OPENROUTER_API_KEY) {
-      const helper = await callOpenRouter({
+    const textProvider = textModelProvider();
+    if (textProvider) {
+      const result = await callTextModel({
         story: body.prompt || body.story || '',
         theme: body.style || '中文歌曲',
         tone: body.mood || '真诚自然'
       });
-      return sendJson(res, 200, { provider: 'openrouter', lyrics: helper.lyrics || '', helper });
+      return sendJson(res, 200, { provider: result.provider, lyrics: result.helper.lyrics || '', helper: result.helper });
+    }
+    const provider = musicProvider();
+    if (provider === 'mureka') {
+      const result = await callMurekaLyrics(body);
+      return sendJson(res, 200, { provider: 'mureka', lyrics: result.lyrics, raw: result.raw });
     }
     throw new Error('No lyrics API configured.');
   }
