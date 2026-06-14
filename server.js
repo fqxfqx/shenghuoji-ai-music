@@ -442,6 +442,111 @@ function assertEmail(email) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('请输入有效邮箱。');
 }
 
+function aliyunMailConfig() {
+  const accessKeyId = process.env.ALIYUN_MAIL_ACCESS_KEY_ID || process.env.ALIYUN_ACCESS_KEY_ID || '';
+  const accessKeySecret = process.env.ALIYUN_MAIL_ACCESS_KEY_SECRET || process.env.ALIYUN_ACCESS_KEY_SECRET || '';
+  const accountName = process.env.ALIYUN_MAIL_ACCOUNT_NAME || process.env.EMAIL_FROM || '';
+  return {
+    accessKeyId: cleanSecret(accessKeyId),
+    accessKeySecret: cleanSecret(accessKeySecret),
+    accountName: String(accountName || '').trim(),
+    fromAlias: String(process.env.ALIYUN_MAIL_FROM_ALIAS || '生活集爱音乐').trim(),
+    regionId: String(process.env.ALIYUN_MAIL_REGION || 'cn-hangzhou').trim()
+  };
+}
+
+function emailProvider() {
+  const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+  const aliyun = aliyunMailConfig();
+  if (provider === 'aliyun' || (aliyun.accessKeyId && aliyun.accessKeySecret && aliyun.accountName)) return 'aliyun';
+  return null;
+}
+
+function aliyunEncode(value) {
+  return encodeURIComponent(String(value))
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A');
+}
+
+async function sendAliyunMail({ to, subject, htmlBody, textBody }) {
+  const config = aliyunMailConfig();
+  if (!config.accessKeyId || !config.accessKeySecret || !config.accountName) {
+    throw new Error('Aliyun mail is missing AccessKey or sender account.');
+  }
+  const params = {
+    AccessKeyId: config.accessKeyId,
+    AccountName: config.accountName,
+    Action: 'SingleSendMail',
+    AddressType: '1',
+    Format: 'JSON',
+    FromAlias: config.fromAlias,
+    HtmlBody: htmlBody,
+    RegionId: config.regionId,
+    ReplyToAddress: 'true',
+    SignatureMethod: 'HMAC-SHA1',
+    SignatureNonce: crypto.randomUUID(),
+    SignatureVersion: '1.0',
+    Subject: subject,
+    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    ToAddress: to,
+    Version: '2015-11-23'
+  };
+  if (textBody) params.TextBody = textBody;
+  const canonicalized = Object.keys(params)
+    .sort()
+    .map(key => `${aliyunEncode(key)}=${aliyunEncode(params[key])}`)
+    .join('&');
+  const stringToSign = `POST&%2F&${aliyunEncode(canonicalized)}`;
+  params.Signature = crypto
+    .createHmac('sha1', `${config.accessKeySecret}&`)
+    .update(stringToSign)
+    .digest('base64');
+  const response = await fetch('https://dm.aliyuncs.com/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params).toString()
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { message: text };
+  }
+  if (!response.ok || data.Code) {
+    throw new Error(data.Message || data.message || data.Code || 'Aliyun DirectMail request failed');
+  }
+  return data;
+}
+
+async function sendVerificationEmail(email, code, purpose) {
+  const provider = emailProvider();
+  if (!provider) return { sent: false, provider: 'local' };
+  const actionText = purpose === 'reset' ? '重置密码' : '注册账号';
+  const subject = `生活集爱音乐${actionText}验证码`;
+  const htmlBody = [
+    '<div style="font-family:Arial,Helvetica,sans-serif;line-height:1.7;color:#111827">',
+    '<h2 style="margin:0 0 12px">生活集爱音乐验证码</h2>',
+    `<p>你正在${actionText}，验证码为：</p>`,
+    `<p style="font-size:28px;font-weight:800;letter-spacing:4px;margin:18px 0">${code}</p>`,
+    '<p>验证码 10 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p>',
+    '</div>'
+  ].join('');
+  if (provider === 'aliyun') {
+    await sendAliyunMail({
+      to: email,
+      subject,
+      htmlBody,
+      textBody: `生活集爱音乐验证码：${code}。10 分钟内有效。`
+    });
+    return { sent: true, provider };
+  }
+  return { sent: false, provider: 'local' };
+}
+
 async function readCodes() {
   const now = Date.now();
   if (await initDb()) {
@@ -1170,6 +1275,7 @@ async function handleApi(req, res, url) {
     const provider = musicProvider();
     const databaseConnected = await initDb();
     const textProvider = textModelProvider();
+    const mailProvider = emailProvider();
     return sendJson(res, 200, {
       provider,
       ready: provider !== 'demo',
@@ -1177,6 +1283,8 @@ async function handleApi(req, res, url) {
       databaseProvider: databaseConnected ? 'postgresql' : 'json-file',
       textModelReady: !!textProvider,
       textModelProvider: textProvider || 'local',
+      emailReady: !!mailProvider,
+      emailProvider: mailProvider || 'local',
       coverReady: !!process.env.COVER_API_KEY,
       coverProvider: process.env.COVER_API_PROVIDER || 'local-plan',
       videoReady: !!process.env.VIDEO_API_KEY,
@@ -1249,11 +1357,12 @@ async function handleApi(req, res, url) {
     if (purpose === 'register' && exists) throw new Error('该邮箱已注册，请直接登录。');
     if (purpose === 'reset' && !exists) throw new Error('该邮箱还没有注册。');
     const code = await createVerifyCode(email, purpose);
+    const mail = await sendVerificationEmail(email, code, purpose);
     return sendJson(res, 200, {
       ok: true,
-      // 当前未配置真实邮件服务，先返回测试验证码；接入邮件服务后删除 devCode。
-      devCode: code,
-      message: '验证码已生成，10 分钟内有效。'
+      provider: mail.provider,
+      ...(mail.sent ? {} : { devCode: code }),
+      message: mail.sent ? '验证码已发送，请查看邮箱。' : '验证码已生成，10 分钟内有效。'
     });
   }
 
