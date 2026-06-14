@@ -800,14 +800,23 @@ function textModelProvider() {
 }
 
 function songHelperMessages(payload) {
+  const story = String(payload.story || payload.prompt || '').trim();
+  const theme = String(payload.theme || payload.style || '中文歌曲').trim();
+  const tone = String(payload.tone || payload.mood || '真诚自然').trim();
   return [
     {
       role: 'system',
-      content: '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。中文要自然、朴素、适合真实生活写歌。不要模仿真实歌手，不要改写已有歌曲。'
+      content: '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。必须紧扣用户给出的故事、对象、用途和情绪，不允许写成泛泛的生活感悟。歌词要像真实的人在说心里话，适合直接交给音乐生成模型演唱。不要模仿真实歌手，不要改写已有歌曲。'
     },
     {
       role: 'user',
-      content: `故事/需求：${payload.story || payload.prompt || ''}\n主题/风格：${payload.theme || payload.style || '中文歌曲'}\n情绪/口吻：${payload.tone || payload.mood || '真诚自然'}\n请整理成可直接生成歌曲的提示词和歌词草稿。`
+      content: [
+        `故事/需求：${story}`,
+        `主题/用途：${theme}`,
+        `情绪/口吻：${tone}`,
+        '请严格围绕上面的故事/需求创作，歌名、prompt、歌词、分享文案都要能看出这个具体主题。',
+        '歌词至少包含 [Verse] 和 [Chorus]，如果是送给某个人，要直接表达给这个人的话。'
+      ].join('\n')
     }
   ];
 }
