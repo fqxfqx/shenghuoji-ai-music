@@ -304,8 +304,13 @@ function parseCookies(req) {
   return out;
 }
 
-function setSessionCookie(res, token) {
-  res.setHeader('Set-Cookie', `shenghuoji_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${30 * 24 * 3600}`);
+function isSecureRequest(req) {
+  return req.headers['x-forwarded-proto'] === 'https' || req.socket?.encrypted;
+}
+
+function setSessionCookie(req, res, token) {
+  const secure = isSecureRequest(req) ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `shenghuoji_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${30 * 24 * 3600}${secure}`);
 }
 
 function clearSessionCookie(res) {
@@ -404,7 +409,7 @@ function saveSessions() {
   writeJson(SESSIONS_FILE, [...sessions.values()]);
 }
 
-async function createSession(res, userId) {
+async function createSession(req, res, userId) {
   const token = crypto.randomBytes(24).toString('hex');
   const session = {
     token,
@@ -422,7 +427,7 @@ async function createSession(res, userId) {
     sessions.set(token, session);
   }
   saveSessions();
-  setSessionCookie(res, token);
+  setSessionCookie(req, res, token);
 }
 
 async function deleteSession(token) {
@@ -460,6 +465,13 @@ function emailProvider() {
   const aliyun = aliyunMailConfig();
   if (provider === 'aliyun' || (aliyun.accessKeyId && aliyun.accessKeySecret && aliyun.accountName)) return 'aliyun';
   return null;
+}
+
+function canUseDevVerifyCode(req) {
+  const host = String(req.headers.host || '').toLowerCase();
+  return process.env.ALLOW_DEV_VERIFY_CODE === 'true'
+    || host.startsWith('localhost')
+    || host.startsWith('127.0.0.1');
 }
 
 function aliyunEncode(value) {
@@ -1356,13 +1368,22 @@ async function handleApi(req, res, url) {
     const exists = !!(await findUserByEmail(email));
     if (purpose === 'register' && exists) throw new Error('该邮箱已注册，请直接登录。');
     if (purpose === 'reset' && !exists) throw new Error('该邮箱还没有注册。');
+    if (!emailProvider() && !canUseDevVerifyCode(req)) {
+      throw new Error('邮箱验证码服务还没配置好。请先在 Railway 变量里配置阿里云邮件推送，配置完成后用户才能正常注册。');
+    }
     const code = await createVerifyCode(email, purpose);
-    const mail = await sendVerificationEmail(email, code, purpose);
+    let mail;
+    try {
+      mail = await sendVerificationEmail(email, code, purpose);
+    } catch (error) {
+      throw new Error(`邮箱验证码发送失败：${error.message || '请检查阿里云邮件推送配置。'}`);
+    }
+    const exposeDevCode = !mail.sent && canUseDevVerifyCode(req);
     return sendJson(res, 200, {
       ok: true,
       provider: mail.provider,
-      ...(mail.sent ? {} : { devCode: code }),
-      message: mail.sent ? '验证码已发送，请查看邮箱。' : '验证码已生成，10 分钟内有效。'
+      ...(exposeDevCode ? { devCode: code } : {}),
+      message: mail.sent ? '验证码已发送，请查看邮箱。' : '本地测试验证码已生成，10 分钟内有效。'
     });
   }
 
@@ -1387,7 +1408,7 @@ async function handleApi(req, res, url) {
       createdAt: new Date().toISOString()
     };
     await createUser(user);
-    await createSession(res, user.id);
+    await createSession(req, res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
 
@@ -1397,7 +1418,7 @@ async function handleApi(req, res, url) {
     const password = String(body.password || '');
     const user = await findUserByEmail(email);
     if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('邮箱或密码错误。');
-    await createSession(res, user.id);
+    await createSession(req, res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
 

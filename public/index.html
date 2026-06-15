@@ -175,6 +175,22 @@
       min-height: 16px;
     }
 
+    .auth-status {
+      padding: 9px 10px;
+      border: 1px solid rgba(252, 211, 77, 0.35);
+      border-radius: 10px;
+      background: rgba(252, 211, 77, 0.1);
+      color: #fde68a;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .auth-status.ready {
+      border-color: rgba(52, 211, 153, 0.35);
+      background: rgba(16, 185, 129, 0.12);
+      color: #bbf7d0;
+    }
+
     .link-btn {
       padding: 0;
       width: max-content;
@@ -3159,9 +3175,11 @@
       current: null,
       audio: null,
       audioUrl: null,
-      api: { ready: false, provider: 'demo' },
+      api: { ready: false, provider: 'demo', emailReady: false, emailProvider: 'local' },
       user: null,
       authMode: 'login',
+      authCodeCooldown: 0,
+      authCodeMessage: '',
       queue: [],
       library: [],
       sampleDuration: 0,
@@ -3440,6 +3458,15 @@
         $('engineState').textContent = '演示引擎就绪';
       }
       renderApiStatus();
+      renderAuth();
+    }
+
+    function authEmailStatusHtml(isCodeMode) {
+      if (!isCodeMode || location.protocol === 'file:') return '';
+      if (state.api.emailReady) {
+        return `<div class="auth-status ready">邮箱验证码已接通：${state.api.emailProvider || 'aliyun'}。请查看收件箱或垃圾邮件。</div>`;
+      }
+      return '<div class="auth-status">邮箱验证码还没接通。管理员需要在 Railway 配置阿里云邮件推送后，用户才能正常注册和找回密码。</div>';
     }
 
     function renderApiStatus() {
@@ -3492,21 +3519,24 @@
         const mode = state.authMode || 'login';
         const isRegister = mode === 'register';
         const isReset = mode === 'reset';
+        const isCodeMode = isRegister || isReset;
+        const codeButtonText = state.authCodeCooldown > 0 ? `${state.authCodeCooldown} 秒后重发` : '获取验证码';
         box.innerHTML = `
           <strong id="authTitle">${isReset ? '找回密码' : isRegister ? '注册账号' : '账号登录'}</strong>
-          <small id="authHint">${isReset ? '输入邮箱验证码后设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分。' : '登录后作品会保存到你的账号。'}</small>
+          <small id="authHint">${isReset ? '先收验证码，再设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分，作品会保存到账号。' : '登录后作品会保存到你的账号。'}</small>
           <div class="auth-tabs">
             <button class="${mode === 'login' ? 'active' : ''}" type="button" data-auth-action="mode-login">登录</button>
             <button class="${mode === 'register' ? 'active' : ''}" type="button" data-auth-action="mode-register">注册</button>
           </div>
+          ${authEmailStatusHtml(isCodeMode)}
           ${isRegister ? '<input id="authName" placeholder="昵称">' : ''}
           <input id="authEmail" type="email" placeholder="邮箱">
-          ${(isRegister || isReset) ? `
+          ${isCodeMode ? `
             <div class="code-row">
               <input id="authCode" placeholder="邮箱验证码">
-              <button class="btn" type="button" data-auth-action="${isReset ? 'send-reset-code' : 'send-register-code'}">获取验证码</button>
+              <button class="btn" type="button" data-auth-action="${isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
             </div>
-            <div class="auth-note" id="authCodeHint"></div>
+            <div class="auth-note" id="authCodeHint">${state.authCodeMessage || ''}</div>
           ` : ''}
           <input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}">
           <div class="auth-row">
@@ -3554,17 +3584,30 @@
       };
     }
 
+    function startAuthCodeCooldown(seconds = 60) {
+      state.authCodeCooldown = seconds;
+      renderAuth();
+      const timer = setInterval(() => {
+        state.authCodeCooldown = Math.max(0, state.authCodeCooldown - 1);
+        renderAuth();
+        if (state.authCodeCooldown <= 0) clearInterval(timer);
+      }, 1000);
+    }
+
     async function sendAuthCode(purpose) {
       try {
         const payload = getAuthPayload();
+        if (!payload.email) throw new Error('请先填写邮箱。');
         const data = await apiFetch('/api/auth/send-code', {
           method: 'POST',
           body: JSON.stringify({ email: payload.email, purpose })
         });
-        const hint = $('authCodeHint');
-        if (hint) hint.textContent = data.devCode ? `测试验证码：${data.devCode}` : '验证码已发送，请查看邮箱。';
+        state.authCodeMessage = data.devCode ? `本地测试验证码：${data.devCode}` : '验证码已发送，请查看邮箱。';
+        startAuthCodeCooldown(60);
         showToast(data.message || '验证码已发送。');
       } catch (error) {
+        state.authCodeMessage = error.message;
+        renderAuth();
         showToast(error.message);
       }
     }
@@ -3659,16 +3702,19 @@
         if (action === 'mode-login') {
           event.preventDefault();
           state.authMode = 'login';
+          state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'mode-register') {
           event.preventDefault();
           state.authMode = 'register';
+          state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'mode-reset') {
           event.preventDefault();
           state.authMode = 'reset';
+          state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'send-register-code') {
