@@ -505,6 +505,10 @@ function smsProvider() {
   return null;
 }
 
+function devLoginReady() {
+  return process.env.DEV_LOGIN_ENABLED === 'true' && !!process.env.DEV_LOGIN_CODE;
+}
+
 function canUseDevVerifyCode(req) {
   const host = String(req.headers.host || '').toLowerCase();
   return process.env.ALLOW_DEV_VERIFY_CODE === 'true'
@@ -1394,6 +1398,7 @@ async function handleApi(req, res, url) {
       emailProvider: mailProvider || 'local',
       smsReady: !!smsProvider(),
       smsProvider: smsProvider() || 'local',
+      devLoginReady: devLoginReady(),
       coverReady: !!process.env.COVER_API_KEY,
       coverProvider: process.env.COVER_API_PROVIDER || 'local-plan',
       videoReady: !!process.env.VIDEO_API_KEY,
@@ -1454,6 +1459,31 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'GET' && url.pathname === '/api/auth/me') {
     return sendJson(res, 200, { user: publicUser(await currentUser(req)) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/dev-login') {
+    if (!devLoginReady()) throw new Error('开发者测试登录未开启。');
+    const body = await readBody(req);
+    if (String(body.code || '') !== String(process.env.DEV_LOGIN_CODE)) throw new Error('开发者测试码不正确。');
+    const email = 'developer@shenghuojiai.local';
+    let user = await findUserByEmail(email);
+    if (!user) {
+      const salt = crypto.randomBytes(16).toString('base64');
+      user = {
+        id: crypto.randomUUID(),
+        email,
+        phone: null,
+        name: '开发者',
+        salt,
+        passwordHash: hashPassword(crypto.randomUUID(), salt),
+        credits: 9999,
+        emailVerified: true,
+        createdAt: new Date().toISOString()
+      };
+      await createUser(user);
+    }
+    await createSession(req, res, user.id);
+    return sendJson(res, 200, { user: publicUser(user) });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/send-code') {

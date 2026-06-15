@@ -3281,6 +3281,7 @@
       authMethod: 'email',
       authCodeCooldown: 0,
       authCodeMessage: '',
+      authDraft: { name: '', email: '', phone: '', code: '', password: '', devCode: '' },
       queue: [],
       library: [],
       sampleDuration: 0,
@@ -3650,6 +3651,33 @@
       return data;
     }
 
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function syncAuthDraft() {
+      if ($('authName')) state.authDraft.name = $('authName').value;
+      if ($('authEmail')) state.authDraft.email = $('authEmail').value;
+      if ($('authPhone')) state.authDraft.phone = $('authPhone').value;
+      if ($('authCode')) state.authDraft.code = $('authCode').value;
+      if ($('authPassword')) state.authDraft.password = $('authPassword').value;
+      if ($('devLoginCode')) state.authDraft.devCode = $('devLoginCode').value;
+    }
+
+    function updateAuthCooldownUi() {
+      const button = document.querySelector('[data-auth-action="send-register-code"], [data-auth-action="send-reset-code"], [data-auth-action="send-sms-register-code"]');
+      if (button) {
+        button.textContent = state.authCodeCooldown > 0 ? `${state.authCodeCooldown} 秒后重发` : '获取验证码';
+        button.disabled = state.authCodeCooldown > 0;
+      }
+      const hint = $('authCodeHint');
+      if (hint) hint.textContent = state.authCodeMessage || '';
+    }
+
     function renderAuth() {
       const box = $('authBox');
       if (!box) return;
@@ -3672,16 +3700,22 @@
             <button class="${mode === 'register' ? 'active' : ''}" type="button" data-auth-action="mode-register">注册</button>
           </div>
           ${isPhone ? authSmsStatusHtml(isRegister) : authEmailStatusHtml(isCodeMode)}
-          ${isRegister ? '<input id="authName" placeholder="昵称">' : ''}
-          ${isPhone ? '<input id="authPhone" inputmode="tel" placeholder="手机号">' : '<input id="authEmail" type="email" placeholder="邮箱">'}
+          ${isRegister ? `<input id="authName" placeholder="昵称" value="${escapeHtml(state.authDraft.name)}">` : ''}
+          ${isPhone ? `<input id="authPhone" inputmode="tel" placeholder="手机号" value="${escapeHtml(state.authDraft.phone)}">` : `<input id="authEmail" type="email" placeholder="邮箱" value="${escapeHtml(state.authDraft.email)}">`}
           ${(!isPhone && isCodeMode) || (isPhone && isRegister) ? `
             <div class="code-row">
-              <input id="authCode" placeholder="${isPhone ? '短信验证码' : '邮箱验证码'}">
+              <input id="authCode" placeholder="${isPhone ? '短信验证码' : '邮箱验证码'}" value="${escapeHtml(state.authDraft.code)}">
               <button class="btn" type="button" data-auth-action="${isPhone ? 'send-sms-register-code' : isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
             </div>
             <div class="auth-note" id="authCodeHint">${state.authCodeMessage || ''}</div>
           ` : ''}
-          <input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}">
+          <input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}" value="${escapeHtml(state.authDraft.password)}">
+          ${state.api.devLoginReady ? `
+            <div class="code-row">
+              <input id="devLoginCode" type="password" placeholder="开发者测试码" value="${escapeHtml(state.authDraft.devCode)}">
+              <button class="btn" type="button" data-auth-action="dev-login">开发者登录</button>
+            </div>
+          ` : ''}
           <div class="auth-row">
             <button class="btn primary" id="authSubmitBtn" type="submit" data-auth-action="${isReset ? 'reset-password' : isRegister ? 'register' : 'login'}">${isReset ? '重置密码' : isRegister ? '注册' : '登录'}</button>
             <button class="btn" type="button" data-auth-action="${isReset || isPhone ? 'mode-login' : 'mode-reset'}">${isReset ? '返回登录' : isPhone ? '返回登录' : '忘记密码'}</button>
@@ -3729,11 +3763,12 @@
     }
 
     function startAuthCodeCooldown(seconds = 60) {
+      syncAuthDraft();
       state.authCodeCooldown = seconds;
-      renderAuth();
+      updateAuthCooldownUi();
       const timer = setInterval(() => {
         state.authCodeCooldown = Math.max(0, state.authCodeCooldown - 1);
-        renderAuth();
+        updateAuthCooldownUi();
         if (state.authCodeCooldown <= 0) clearInterval(timer);
       }, 1000);
     }
@@ -3785,6 +3820,8 @@
         state.user = data.user;
         state.credits = data.user.credits;
         $('credits').textContent = state.credits;
+        state.authDraft = { name: '', email: '', phone: '', code: '', password: '', devCode: '' };
+        state.authCodeMessage = '';
         renderAuth();
         closeAuthModal();
         showToast('注册成功，已赠送 40 积分。');
@@ -3806,6 +3843,8 @@
         state.user = data.user;
         state.credits = data.user.credits;
         $('credits').textContent = state.credits;
+        state.authDraft = { name: '', email: '', phone: '', code: '', password: '', devCode: '' };
+        state.authCodeMessage = '';
         renderAuth();
         closeAuthModal();
         showToast('登录成功。');
@@ -3824,6 +3863,27 @@
         state.authMode = 'login';
         renderAuth();
         showToast('密码已重置，请用新密码登录。');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    async function devLogin() {
+      try {
+        syncAuthDraft();
+        if (!state.authDraft.devCode) throw new Error('请输入开发者测试码。');
+        const data = await apiFetch('/api/auth/dev-login', {
+          method: 'POST',
+          body: JSON.stringify({ code: state.authDraft.devCode })
+        });
+        state.user = data.user;
+        state.credits = data.user.credits;
+        $('credits').textContent = state.credits;
+        state.authDraft = { name: '', email: '', phone: '', code: '', password: '', devCode: '' };
+        state.authCodeMessage = '';
+        renderAuth();
+        closeAuthModal();
+        showToast('开发者测试登录成功。');
       } catch (error) {
         showToast(error.message);
       }
@@ -3862,20 +3922,24 @@
       box.dataset.bound = 'true';
       box.addEventListener('submit', (event) => {
         event.preventDefault();
+        syncAuthDraft();
         if (state.authMode === 'register') return register();
         if (state.authMode === 'reset') return resetPassword();
         return login();
       });
+      box.addEventListener('input', syncAuthDraft);
       box.addEventListener('click', (event) => {
         const action = event.target && event.target.dataset ? event.target.dataset.authAction : '';
         if (action === 'method-email') {
           event.preventDefault();
+          syncAuthDraft();
           state.authMethod = 'email';
           state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'method-phone') {
           event.preventDefault();
+          syncAuthDraft();
           state.authMethod = 'phone';
           state.authMode = state.authMode === 'reset' ? 'login' : state.authMode;
           state.authCodeMessage = '';
@@ -3883,18 +3947,21 @@
         }
         if (action === 'mode-login') {
           event.preventDefault();
+          syncAuthDraft();
           state.authMode = 'login';
           state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'mode-register') {
           event.preventDefault();
+          syncAuthDraft();
           state.authMode = 'register';
           state.authCodeMessage = '';
           renderAuth();
         }
         if (action === 'mode-reset') {
           event.preventDefault();
+          syncAuthDraft();
           state.authMode = 'reset';
           state.authCodeMessage = '';
           renderAuth();
@@ -3910,6 +3977,10 @@
         if (action === 'send-sms-register-code') {
           event.preventDefault();
           sendSmsCode('register');
+        }
+        if (action === 'dev-login') {
+          event.preventDefault();
+          devLogin();
         }
         if (action === 'register') {
           event.preventDefault();
