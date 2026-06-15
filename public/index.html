@@ -213,6 +213,95 @@
       color: #111827;
     }
 
+    .sidebar .auth-box {
+      display: none;
+    }
+
+    .auth-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(3, 7, 18, 0.72);
+      backdrop-filter: blur(10px);
+    }
+
+    .auth-modal.open {
+      display: flex;
+    }
+
+    .auth-card {
+      width: min(460px, 100%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(23, 23, 30, 0.98), rgba(17, 24, 28, 0.98));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .auth-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 22px 22px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .auth-card-head h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    .auth-card-head p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.66);
+      line-height: 1.5;
+    }
+
+    .auth-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .auth-card .auth-box {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 18px 22px 22px;
+    }
+
+    .auth-method-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .auth-method-tabs button {
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.76);
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .auth-method-tabs button.active {
+      border-color: rgba(45, 212, 191, 0.58);
+      background: rgba(20, 184, 166, 0.18);
+      color: #ccfbf1;
+    }
+
     .quota b { font-size: 24px; }
     .quota p { margin: 6px 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .meter { height: 8px; border-radius: 99px; background: #e1dacb; overflow: hidden; }
@@ -2397,10 +2486,6 @@
         <button data-jump="mv-maker">MV制作</button>
         <button data-jump="plans">套餐</button>
       </nav>
-      <form class="auth-box" id="authBox">
-        <strong id="authTitle">账号登录</strong>
-        <small id="authHint">登录后作品会保存到你的账号。</small>
-      </form>
       <div class="quota">
         <b id="credits">84</b>
         <p>本月可用积分。生成一首完整歌曲消耗 8-12 积分，失败任务自动返还。</p>
@@ -3141,6 +3226,21 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="auth-modal" id="authModal" aria-hidden="true">
+    <div class="auth-card">
+      <div class="auth-card-head">
+        <div>
+          <h2>生活集爱音乐</h2>
+          <p>登录后保存作品、积分和创作记录。</p>
+        </div>
+        <button class="auth-close" id="authCloseBtn" type="button" aria-label="关闭">×</button>
+      </div>
+      <form class="auth-box" id="authBox">
+        <strong id="authTitle">账号登录</strong>
+        <small id="authHint">登录后作品会保存到你的账号。</small>
+      </form>
+    </div>
+  </div>
   <div class="profile-popover" id="profilePopover">
     <div class="feed-author"><span class="avatar" id="menuAvatar">访</span><span id="menuName">游客</span></div>
       <div class="profile-line"><span>账号</span><b id="menuEmail">未登录</b></div>
@@ -3178,6 +3278,7 @@
       api: { ready: false, provider: 'demo', emailReady: false, emailProvider: 'local' },
       user: null,
       authMode: 'login',
+      authMethod: 'email',
       authCodeCooldown: 0,
       authCodeMessage: '',
       queue: [],
@@ -3386,11 +3487,11 @@
 
     function renderProfileSummary() {
       const name = state.user ? state.user.name : '游客';
-      const email = state.user ? state.user.email : '未登录';
+      const email = state.user ? (state.user.phone || state.user.email) : '未登录';
       const credits = state.user ? state.user.credits : state.credits;
       const initial = name ? name.slice(0, 1) : '访';
       if ($('profileName')) $('profileName').textContent = name;
-      if ($('profileCredits')) $('profileCredits').textContent = state.user ? `${credits} 积分 · ${email}` : '注册后送 40 积分';
+      if ($('profileCredits')) $('profileCredits').textContent = state.user ? `${credits} 积分 · ${email}` : '登录 / 注册';
       if ($('profileAvatar')) $('profileAvatar').textContent = initial;
       if ($('menuAvatar')) $('menuAvatar').textContent = initial;
       if ($('menuName')) $('menuName').textContent = name;
@@ -3409,6 +3510,10 @@
       const popover = $('profilePopover');
       if (!trigger || !popover) return;
       trigger.addEventListener('click', () => {
+        if (!state.user) {
+          openAuthModal('login');
+          return;
+        }
         renderProfileSummary();
         popover.classList.toggle('open');
       });
@@ -3440,6 +3545,31 @@
       });
       const changePasswordBtn = $('changePasswordBtn');
       if (changePasswordBtn) changePasswordBtn.addEventListener('click', changePassword);
+      const authCloseBtn = $('authCloseBtn');
+      if (authCloseBtn) authCloseBtn.addEventListener('click', closeAuthModal);
+      const authModal = $('authModal');
+      if (authModal) authModal.addEventListener('click', (event) => {
+        if (event.target === authModal) closeAuthModal();
+      });
+    }
+
+    function openAuthModal(mode = 'login') {
+      state.authMode = mode;
+      state.authCodeMessage = '';
+      const modal = $('authModal');
+      if (modal) {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      renderAuth();
+    }
+
+    function closeAuthModal() {
+      const modal = $('authModal');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
     }
 
     async function loadApiConfig() {
@@ -3467,6 +3597,14 @@
         return `<div class="auth-status ready">邮箱验证码已接通：${state.api.emailProvider || 'aliyun'}。请查看收件箱或垃圾邮件。</div>`;
       }
       return '<div class="auth-status">邮箱验证码还没接通。管理员需要在 Railway 配置阿里云邮件推送后，用户才能正常注册和找回密码。</div>';
+    }
+
+    function authSmsStatusHtml(isCodeMode) {
+      if (!isCodeMode || location.protocol === 'file:') return '';
+      if (state.api.smsReady) {
+        return `<div class="auth-status ready">短信验证码已接通：${state.api.smsProvider || 'aliyun'}。请查看手机短信。</div>`;
+      }
+      return '<div class="auth-status">短信验证码还没接通。需要在阿里云短信服务里配置签名和验证码模板后才能使用。</div>';
     }
 
     function renderApiStatus() {
@@ -3520,28 +3658,33 @@
         const isRegister = mode === 'register';
         const isReset = mode === 'reset';
         const isCodeMode = isRegister || isReset;
+        const isPhone = state.authMethod === 'phone';
         const codeButtonText = state.authCodeCooldown > 0 ? `${state.authCodeCooldown} 秒后重发` : '获取验证码';
         box.innerHTML = `
           <strong id="authTitle">${isReset ? '找回密码' : isRegister ? '注册账号' : '账号登录'}</strong>
-          <small id="authHint">${isReset ? '先收验证码，再设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分，作品会保存到账号。' : '登录后作品会保存到你的账号。'}</small>
+          <small id="authHint">${isPhone ? '手机号适合没有邮箱的用户，短信服务配置后可用。' : isReset ? '先收验证码，再设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分，作品会保存到账号。' : '登录后作品会保存到你的账号。'}</small>
+          <div class="auth-method-tabs">
+            <button class="${!isPhone ? 'active' : ''}" type="button" data-auth-action="method-email">邮箱登录</button>
+            <button class="${isPhone ? 'active' : ''}" type="button" data-auth-action="method-phone">手机登录</button>
+          </div>
           <div class="auth-tabs">
             <button class="${mode === 'login' ? 'active' : ''}" type="button" data-auth-action="mode-login">登录</button>
             <button class="${mode === 'register' ? 'active' : ''}" type="button" data-auth-action="mode-register">注册</button>
           </div>
-          ${authEmailStatusHtml(isCodeMode)}
+          ${isPhone ? authSmsStatusHtml(isRegister) : authEmailStatusHtml(isCodeMode)}
           ${isRegister ? '<input id="authName" placeholder="昵称">' : ''}
-          <input id="authEmail" type="email" placeholder="邮箱">
-          ${isCodeMode ? `
+          ${isPhone ? '<input id="authPhone" inputmode="tel" placeholder="手机号">' : '<input id="authEmail" type="email" placeholder="邮箱">'}
+          ${(!isPhone && isCodeMode) || (isPhone && isRegister) ? `
             <div class="code-row">
-              <input id="authCode" placeholder="邮箱验证码">
-              <button class="btn" type="button" data-auth-action="${isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
+              <input id="authCode" placeholder="${isPhone ? '短信验证码' : '邮箱验证码'}">
+              <button class="btn" type="button" data-auth-action="${isPhone ? 'send-sms-register-code' : isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
             </div>
             <div class="auth-note" id="authCodeHint">${state.authCodeMessage || ''}</div>
           ` : ''}
           <input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}">
           <div class="auth-row">
             <button class="btn primary" id="authSubmitBtn" type="submit" data-auth-action="${isReset ? 'reset-password' : isRegister ? 'register' : 'login'}">${isReset ? '重置密码' : isRegister ? '注册' : '登录'}</button>
-            <button class="btn" type="button" data-auth-action="${isReset ? 'mode-login' : 'mode-reset'}">${isReset ? '返回登录' : '忘记密码'}</button>
+            <button class="btn" type="button" data-auth-action="${isReset || isPhone ? 'mode-login' : 'mode-reset'}">${isReset ? '返回登录' : isPhone ? '返回登录' : '忘记密码'}</button>
           </div>
         `;
         bindAuthButtons();
@@ -3579,6 +3722,7 @@
       return {
         name: $('authName') ? $('authName').value.trim() : '',
         email: $('authEmail') ? $('authEmail').value.trim() : '',
+        phone: $('authPhone') ? $('authPhone').value.trim() : '',
         password: $('authPassword') ? $('authPassword').value : '',
         code: $('authCode') ? $('authCode').value.trim() : ''
       };
@@ -3612,16 +3756,37 @@
       }
     }
 
+    async function sendSmsCode(purpose) {
+      try {
+        const payload = getAuthPayload();
+        if (!payload.phone) throw new Error('请先填写手机号。');
+        const data = await apiFetch('/api/auth/send-sms-code', {
+          method: 'POST',
+          body: JSON.stringify({ phone: payload.phone, purpose })
+        });
+        state.authCodeMessage = data.devCode ? `本地测试短信验证码：${data.devCode}` : '短信验证码已发送，请查看手机。';
+        startAuthCodeCooldown(60);
+        showToast(data.message || '短信验证码已发送。');
+      } catch (error) {
+        state.authCodeMessage = error.message;
+        renderAuth();
+        showToast(error.message);
+      }
+    }
+
     async function register() {
       try {
-        const data = await apiFetch('/api/auth/register', {
+        const payload = getAuthPayload();
+        const endpoint = state.authMethod === 'phone' ? '/api/auth/register-phone' : '/api/auth/register';
+        const data = await apiFetch(endpoint, {
           method: 'POST',
-          body: JSON.stringify(getAuthPayload())
+          body: JSON.stringify(payload)
         });
         state.user = data.user;
         state.credits = data.user.credits;
         $('credits').textContent = state.credits;
         renderAuth();
+        closeAuthModal();
         showToast('注册成功，已赠送 40 积分。');
       } catch (error) {
         showToast(error.message);
@@ -3631,14 +3796,18 @@
     async function login() {
       try {
         const payload = getAuthPayload();
-        const data = await apiFetch('/api/auth/login', {
+        const endpoint = state.authMethod === 'phone' ? '/api/auth/login-phone' : '/api/auth/login';
+        const data = await apiFetch(endpoint, {
           method: 'POST',
-          body: JSON.stringify({ email: payload.email, password: payload.password })
+          body: JSON.stringify(state.authMethod === 'phone'
+            ? { phone: payload.phone, password: payload.password }
+            : { email: payload.email, password: payload.password })
         });
         state.user = data.user;
         state.credits = data.user.credits;
         $('credits').textContent = state.credits;
         renderAuth();
+        closeAuthModal();
         showToast('登录成功。');
       } catch (error) {
         showToast(error.message);
@@ -3699,6 +3868,19 @@
       });
       box.addEventListener('click', (event) => {
         const action = event.target && event.target.dataset ? event.target.dataset.authAction : '';
+        if (action === 'method-email') {
+          event.preventDefault();
+          state.authMethod = 'email';
+          state.authCodeMessage = '';
+          renderAuth();
+        }
+        if (action === 'method-phone') {
+          event.preventDefault();
+          state.authMethod = 'phone';
+          state.authMode = state.authMode === 'reset' ? 'login' : state.authMode;
+          state.authCodeMessage = '';
+          renderAuth();
+        }
         if (action === 'mode-login') {
           event.preventDefault();
           state.authMode = 'login';
@@ -3724,6 +3906,10 @@
         if (action === 'send-reset-code') {
           event.preventDefault();
           sendAuthCode('reset');
+        }
+        if (action === 'send-sms-register-code') {
+          event.preventDefault();
+          sendSmsCode('register');
         }
         if (action === 'register') {
           event.preventDefault();

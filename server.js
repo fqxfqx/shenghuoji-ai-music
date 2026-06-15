@@ -73,6 +73,7 @@ async function initDb() {
       create table if not exists users (
         id text primary key,
         email text unique not null,
+        phone text unique,
         name text not null,
         salt text not null,
         password_hash text not null,
@@ -106,6 +107,7 @@ async function initDb() {
         created_at timestamptz not null default now()
       );
     `);
+    await pgPool.query('alter table users add column if not exists phone text unique');
     await migrateJsonToDb();
     dbReady = true;
     return true;
@@ -123,6 +125,7 @@ function rowToUser(row) {
   return {
     id: row.id,
     email: row.email,
+    phone: row.phone || null,
     name: row.name,
     salt: row.salt,
     passwordHash: row.password_hash,
@@ -155,12 +158,13 @@ async function migrateJsonToDb() {
     for (const user of users) {
       if (!user.id || !user.email || !user.passwordHash || !user.salt) continue;
       await pgPool.query(
-        `insert into users (id, email, name, salt, password_hash, credits, email_verified, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, coalesce($8::timestamptz, now()), $9::timestamptz)
+        `insert into users (id, email, phone, name, salt, password_hash, credits, email_verified, created_at, updated_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9::timestamptz, now()), $10::timestamptz)
          on conflict (id) do nothing`,
         [
           user.id,
           user.email,
+          user.phone || null,
           user.name || user.email.split('@')[0],
           user.salt,
           user.passwordHash,
@@ -322,6 +326,7 @@ function publicUser(user) {
   return {
     id: user.id,
     email: user.email,
+    phone: user.phone || null,
     name: user.name,
     credits: user.credits || 0,
     emailVerified: !!user.emailVerified,
@@ -341,6 +346,14 @@ async function findUserByEmail(email) {
   return readJson(USERS_FILE).find(user => user.email === email) || null;
 }
 
+async function findUserByPhone(phone) {
+  if (await initDb()) {
+    const result = await pgPool.query('select * from users where phone = $1 limit 1', [phone]);
+    return rowToUser(result.rows[0]);
+  }
+  return readJson(USERS_FILE).find(user => user.phone === phone) || null;
+}
+
 async function findUserById(id) {
   if (await initDb()) {
     const result = await pgPool.query('select * from users where id = $1 limit 1', [id]);
@@ -352,9 +365,9 @@ async function findUserById(id) {
 async function createUser(user) {
   if (await initDb()) {
     await pgPool.query(
-      `insert into users (id, email, name, salt, password_hash, credits, email_verified, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)`,
-      [user.id, user.email, user.name, user.salt, user.passwordHash, user.credits || 0, !!user.emailVerified, user.createdAt]
+      `insert into users (id, email, phone, name, salt, password_hash, credits, email_verified, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz)`,
+      [user.id, user.email, user.phone || null, user.name, user.salt, user.passwordHash, user.credits || 0, !!user.emailVerified, user.createdAt]
     );
     return user;
   }
@@ -447,6 +460,14 @@ function assertEmail(email) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('请输入有效邮箱。');
 }
 
+function normalizePhone(value) {
+  return String(value || '').replace(/[^\d]/g, '').trim();
+}
+
+function assertPhone(phone) {
+  if (!/^1[3-9]\d{9}$/.test(phone)) throw new Error('请输入有效的中国大陆手机号。');
+}
+
 function aliyunMailConfig() {
   const accessKeyId = process.env.ALIYUN_MAIL_ACCESS_KEY_ID || process.env.ALIYUN_ACCESS_KEY_ID || '';
   const accessKeySecret = process.env.ALIYUN_MAIL_ACCESS_KEY_SECRET || process.env.ALIYUN_ACCESS_KEY_SECRET || '';
@@ -464,6 +485,23 @@ function emailProvider() {
   const provider = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
   const aliyun = aliyunMailConfig();
   if (provider === 'aliyun' || (aliyun.accessKeyId && aliyun.accessKeySecret && aliyun.accountName)) return 'aliyun';
+  return null;
+}
+
+function smsConfig() {
+  return {
+    accessKeyId: cleanSecret(process.env.ALIYUN_SMS_ACCESS_KEY_ID || process.env.ALIYUN_ACCESS_KEY_ID || ''),
+    accessKeySecret: cleanSecret(process.env.ALIYUN_SMS_ACCESS_KEY_SECRET || process.env.ALIYUN_ACCESS_KEY_SECRET || ''),
+    signName: String(process.env.ALIYUN_SMS_SIGN_NAME || '').trim(),
+    templateCode: String(process.env.ALIYUN_SMS_TEMPLATE_CODE || '').trim(),
+    regionId: String(process.env.ALIYUN_SMS_REGION || 'cn-hangzhou').trim()
+  };
+}
+
+function smsProvider() {
+  const provider = String(process.env.SMS_PROVIDER || '').trim().toLowerCase();
+  const config = smsConfig();
+  if (provider === 'aliyun' || (config.accessKeyId && config.accessKeySecret && config.signName && config.templateCode)) return 'aliyun';
   return null;
 }
 
@@ -554,6 +592,63 @@ async function sendVerificationEmail(email, code, purpose) {
       htmlBody,
       textBody: `生活集爱音乐验证码：${code}。10 分钟内有效。`
     });
+    return { sent: true, provider };
+  }
+  return { sent: false, provider: 'local' };
+}
+
+async function sendAliyunSms(phone, code) {
+  const config = smsConfig();
+  if (!config.accessKeyId || !config.accessKeySecret || !config.signName || !config.templateCode) {
+    throw new Error('Aliyun SMS is missing AccessKey, sign name, or template code.');
+  }
+  const params = {
+    AccessKeyId: config.accessKeyId,
+    Action: 'SendSms',
+    Format: 'JSON',
+    PhoneNumbers: phone,
+    RegionId: config.regionId,
+    SignName: config.signName,
+    SignatureMethod: 'HMAC-SHA1',
+    SignatureNonce: crypto.randomUUID(),
+    SignatureVersion: '1.0',
+    TemplateCode: config.templateCode,
+    TemplateParam: JSON.stringify({ code }),
+    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    Version: '2017-05-25'
+  };
+  const canonicalized = Object.keys(params)
+    .sort()
+    .map(key => `${aliyunEncode(key)}=${aliyunEncode(params[key])}`)
+    .join('&');
+  const stringToSign = `POST&%2F&${aliyunEncode(canonicalized)}`;
+  params.Signature = crypto
+    .createHmac('sha1', `${config.accessKeySecret}&`)
+    .update(stringToSign)
+    .digest('base64');
+  const response = await fetch('https://dysmsapi.aliyuncs.com/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params).toString()
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { Message: text };
+  }
+  if (!response.ok || (data.Code && data.Code !== 'OK')) {
+    throw new Error(data.Message || data.Code || 'Aliyun SMS request failed');
+  }
+  return data;
+}
+
+async function sendVerificationSms(phone, code) {
+  const provider = smsProvider();
+  if (!provider) return { sent: false, provider: 'local' };
+  if (provider === 'aliyun') {
+    await sendAliyunSms(phone, code);
     return { sent: true, provider };
   }
   return { sent: false, provider: 'local' };
@@ -1297,6 +1392,8 @@ async function handleApi(req, res, url) {
       textModelProvider: textProvider || 'local',
       emailReady: !!mailProvider,
       emailProvider: mailProvider || 'local',
+      smsReady: !!smsProvider(),
+      smsProvider: smsProvider() || 'local',
       coverReady: !!process.env.COVER_API_KEY,
       coverProvider: process.env.COVER_API_PROVIDER || 'local-plan',
       videoReady: !!process.env.VIDEO_API_KEY,
@@ -1387,6 +1484,34 @@ async function handleApi(req, res, url) {
     });
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/auth/send-sms-code') {
+    const body = await readBody(req);
+    const phone = normalizePhone(body.phone);
+    const purpose = String(body.purpose || 'register').trim();
+    assertPhone(phone);
+    if (!['register', 'login'].includes(purpose)) throw new Error('验证码用途无效。');
+    const exists = !!(await findUserByPhone(phone));
+    if (purpose === 'register' && exists) throw new Error('该手机号已注册，请直接登录。');
+    if (purpose === 'login' && !exists) throw new Error('该手机号还没有注册。');
+    if (!smsProvider() && !canUseDevVerifyCode(req)) {
+      throw new Error('短信验证码服务还没配置好。请先配置阿里云短信签名和验证码模板。');
+    }
+    const code = await createVerifyCode(phone, `sms-${purpose}`);
+    let sms;
+    try {
+      sms = await sendVerificationSms(phone, code);
+    } catch (error) {
+      throw new Error(`短信验证码发送失败：${error.message || '请检查阿里云短信配置。'}`);
+    }
+    const exposeDevCode = !sms.sent && canUseDevVerifyCode(req);
+    return sendJson(res, 200, {
+      ok: true,
+      provider: sms.provider,
+      ...(exposeDevCode ? { devCode: code } : {}),
+      message: sms.sent ? '短信验证码已发送，请查看手机。' : '本地测试短信验证码已生成，10 分钟内有效。'
+    });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/auth/register') {
     const body = await readBody(req);
     const email = normalizeEmail(body.email);
@@ -1412,12 +1537,49 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { user: publicUser(user) });
   }
 
+  if (req.method === 'POST' && url.pathname === '/api/auth/register-phone') {
+    const body = await readBody(req);
+    const phone = normalizePhone(body.phone);
+    const password = String(body.password || '');
+    const name = String(body.name || '').trim() || `手机用户${phone.slice(-4)}`;
+    assertPhone(phone);
+    if (password.length < 6) throw new Error('密码至少 6 位。');
+    await consumeVerifyCode(phone, 'sms-register', body.code);
+    if (await findUserByPhone(phone)) throw new Error('该手机号已注册。');
+    const salt = crypto.randomBytes(16).toString('base64');
+    const user = {
+      id: crypto.randomUUID(),
+      email: `${phone}@phone.shenghuojiai.local`,
+      phone,
+      name,
+      salt,
+      passwordHash: hashPassword(password, salt),
+      credits: 40,
+      emailVerified: false,
+      createdAt: new Date().toISOString()
+    };
+    await createUser(user);
+    await createSession(req, res, user.id);
+    return sendJson(res, 200, { user: publicUser(user) });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/auth/login') {
     const body = await readBody(req);
     const email = normalizeEmail(body.email);
     const password = String(body.password || '');
     const user = await findUserByEmail(email);
     if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('邮箱或密码错误。');
+    await createSession(req, res, user.id);
+    return sendJson(res, 200, { user: publicUser(user) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/login-phone') {
+    const body = await readBody(req);
+    const phone = normalizePhone(body.phone);
+    const password = String(body.password || '');
+    assertPhone(phone);
+    const user = await findUserByPhone(phone);
+    if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('手机号或密码错误。');
     await createSession(req, res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
