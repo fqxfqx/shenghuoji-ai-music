@@ -1284,10 +1284,40 @@ function firstUploadedFile(files) {
 }
 
 async function callMurekaTool(action, body, file) {
+  if (action === 'vocal-cloning') {
+    if (!file) throw new Error('人声克隆需要上传已授权的人声样本。');
+    const filename = String(file.filename || '');
+    if (!/\.(mp3|m4a)$/i.test(filename)) {
+      throw new Error('Mureka 人声克隆只支持 MP3 或 M4A，且文件需小于 10MB。请先把音频转成 MP3/M4A 后再上传。');
+    }
+    if (file.data.length > 10 * 1024 * 1024) {
+      throw new Error('Mureka 人声克隆文件需小于 10MB，请压缩或截取更短的人声音频。');
+    }
+    const form = new FormData();
+    const blob = new Blob([file.data], { type: file.contentType || 'audio/mpeg' });
+    form.append('file', blob, filename);
+    form.append('description', String(body.description || body.requirement || 'authorized vocal sample').slice(0, 1024));
+    const response = await fetch('https://api.mureka.ai/v1/song/vocal-clone', {
+      method: 'POST',
+      headers: {
+        Authorization: murekaAuthHeader()
+      },
+      body: form
+    });
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { message: text };
+    }
+    if (!response.ok) throw new Error(murekaError(data, 'Mureka vocal clone request failed'));
+    return data;
+  }
+
   const endpointMap = {
     'lyrics-extend': '/v1/lyrics/extend',
     'song-extend': '/v1/song/extend',
-    'vocal-cloning': '/v1/song/vocal-cloning',
     recognize: '/v1/song/recognize',
     describe: '/v1/song/describe',
     'lyrics-video': '/v1/song/lyrics-video',

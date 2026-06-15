@@ -2767,7 +2767,7 @@
                 <div class="tool-card"><b>续写歌词</b><p>歌词写到一半时，继续写下一段主歌/副歌。</p><button class="btn" data-tool-action="lyrics-extend">继续写歌词</button></div>
                 <div class="tool-card"><b>歌曲延长</b><p>把当前歌曲或上传音频继续延长，适合做完整版本。</p><button class="btn" data-tool-action="song-extend">延长歌曲</button></div>
                 <div class="tool-card"><b>局部重做</b><p>只重做某一段，比如副歌、人声、前奏或结尾。</p><button class="btn" data-tool-action="region-editing">局部重做</button></div>
-                <div class="tool-card"><b>人声克隆</b><p>上传已授权的人声样本，生成类似音色的新歌。</p><button class="btn" data-tool-action="vocal-cloning">克隆我的声音</button></div>
+                <div class="tool-card"><b>人声克隆</b><p>上传本人或已授权人声样本，MP3/M4A，小于 10MB。</p><button class="btn" data-tool-action="vocal-cloning">克隆授权声音</button></div>
               </div>
               <div class="tool-group-label">分析与拆分</div>
               <div class="toolkit-grid">
@@ -4754,6 +4754,26 @@
         showToast('这个功能需要先上传素材，或先生成/播放一首歌曲。');
         if (fileInput) fileInput.focus();
         return;
+      }
+      if (action === 'vocal-cloning' && file) {
+        if (!/\.(mp3|m4a)$/i.test(file.name)) {
+          const message = '人声克隆只支持 MP3 或 M4A，请先把授权人声样本转成 MP3/M4A，时长 15-30 秒，文件小于 10MB。';
+          if (resultBox) {
+            resultBox.classList.remove('empty');
+            resultBox.textContent = message;
+          }
+          showToast(message);
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          const message = '人声克隆文件需小于 10MB，请截取 15-30 秒清晰人声后再上传。';
+          if (resultBox) {
+            resultBox.classList.remove('empty');
+            resultBox.textContent = message;
+          }
+          showToast(message);
+          return;
+        }
       }
       if (resultBox) {
         resultBox.classList.remove('empty');
