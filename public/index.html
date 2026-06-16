@@ -3773,7 +3773,7 @@
     function friendlyApiError(message) {
       const text = String(message || '');
       if (/Unexpected token.*html|not valid JSON|html/i.test(text)) {
-        return '服务器返回了网页错误，不是正常接口结果。常见原因是参考音频过大、网络中断或服务刚部署重启。请删除过大的参考素材，换成 30MB 以内 MP3/M4A 后再试。';
+        return '服务器返回了网页错误，不是正常接口结果。常见原因是网络中断或服务刚部署重启。请稍后重试；大音频现在会自动压缩成参考采样。';
       }
       if (/invalid authentication|unauthorized|authentication/i.test(text)) {
         return 'Mureka API Key 无效或填错了。请到 Railway 的 Variables 里重新粘贴 MUREKA_API_KEY，只填 API 密钥本身，不要填网页登录密码。';
@@ -3782,7 +3782,7 @@
         return 'Mureka 余额或额度不足，请先到 Mureka 控制台充值或确认套餐可用。';
       }
       if (/failed to fetch|networkerror|load failed/i.test(text)) {
-        return '网络请求中断了。已把生成任务改成后台提交，请刷新后重试；如果还出现，请换小一点的参考音频或稍后再试。';
+        return '网络请求中断了。已把生成任务改成后台提交，并会自动压缩大音频参考采样。请刷新后稍后再试。';
       }
       return text || '真实 API 调用失败，已退回本次积分。';
     }
@@ -4597,6 +4597,36 @@
         view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
       }
       return new Blob([view], { type: 'audio/wav' });
+    }
+
+    async function compressReferenceAudio(file) {
+      if (!file || file.size <= 30 * 1024 * 1024) return file;
+      if (!/\.(mp3|m4a|wav)$/i.test(file.name)) return file;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return file;
+      const originalMb = (file.size / 1024 / 1024).toFixed(1);
+      showToast(`参考音频约 ${originalMb}MB，正在自动压缩成可上传采样...`);
+      const arrayBuffer = await file.arrayBuffer();
+      const audioContext = new AudioContextClass();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      if (audioContext.close) audioContext.close();
+      const sampleRate = 22050;
+      const seconds = Math.min(90, audioBuffer.duration || 90);
+      const total = Math.max(1, Math.floor(seconds * sampleRate));
+      const output = new Float32Array(total);
+      for (let i = 0; i < total; i += 1) {
+        const sourceIndex = Math.min(audioBuffer.length - 1, Math.floor(i * audioBuffer.sampleRate / sampleRate));
+        let sum = 0;
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
+          sum += audioBuffer.getChannelData(channel)[sourceIndex] || 0;
+        }
+        output[i] = sum / Math.max(1, audioBuffer.numberOfChannels);
+      }
+      const blob = encodeWav(output, sampleRate);
+      const base = file.name.replace(/\.[^.]+$/, '').slice(0, 48) || 'reference';
+      const compressed = new File([blob], `${base}_reference.wav`, { type: 'audio/wav' });
+      showToast(`已自动压缩参考音频：${originalMb}MB → ${(compressed.size / 1024 / 1024).toFixed(1)}MB。`);
+      return compressed;
     }
 
     function titleFrom(config) {
@@ -5460,18 +5490,11 @@
     }
 
     async function generateWithRealApi(config) {
-      const sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
+      let sampleFile = $('coverAudio') && $('coverAudio').files ? $('coverAudio').files[0] : null;
       if (sampleFile && !/\.(mp3|m4a|wav)$/i.test(sampleFile.name)) {
         state.credits += 16;
         $('credits').textContent = state.credits;
         showToast('参考采样请上传 MP3、M4A 或 WAV。');
-        return;
-      }
-      if (sampleFile && sampleFile.size > 30 * 1024 * 1024) {
-        state.credits += 16;
-        $('credits').textContent = state.credits;
-        const sizeMb = (sampleFile.size / 1024 / 1024).toFixed(1);
-        showToast(`参考音频约 ${sizeMb}MB，太大了。请压缩到 30MB 以内，建议转成 MP3/M4A 后再生成。`);
         return;
       }
       const task = {
@@ -5489,8 +5512,14 @@
       try {
         let requestOptions;
         if (sampleFile) {
+          sampleFile = await compressReferenceAudio(sampleFile);
           const form = new FormData();
-          form.append('payload', JSON.stringify(config));
+          const payload = {
+            ...config,
+            sampleName: sampleFile.name,
+            sampleCompressed: sampleFile.name.endsWith('_reference.wav')
+          };
+          form.append('payload', JSON.stringify(payload));
           form.append('sample', sampleFile);
           requestOptions = { method: 'POST', body: form };
         } else {
@@ -5847,12 +5876,7 @@
       }
       if (file && file.size > 30 * 1024 * 1024) {
         const sizeMb = (file.size / 1024 / 1024).toFixed(1);
-        coverAudio.value = '';
-        state.sampleDuration = 0;
-        updateAutoDuration();
-        if ($('coverFileName')) $('coverFileName').textContent = '不上传也可以直接创作';
-        showToast(`参考音频约 ${sizeMb}MB，太大了。请压缩到 30MB 以内，建议转成 MP3/M4A。`);
-        return;
+        showToast(`参考音频约 ${sizeMb}MB，生成时会自动压缩成可用采样。`);
       }
       if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '不上传也可以直接创作';
       state.sampleDuration = 0;
