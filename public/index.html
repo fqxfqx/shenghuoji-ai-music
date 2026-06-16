@@ -5057,6 +5057,57 @@
       return text.length > 1800 ? text.slice(0, 1800) + '\n...' : text;
     }
 
+    function formatToolResult(label, value) {
+      const result = value?.result || value;
+      if (!result || typeof result !== 'object') return shortJson(result || value);
+      const lines = [];
+      if (result.summary) lines.push(`结果：${result.summary}`);
+      if (result.lyrics) lines.push(`\n歌词：\n${result.lyrics}`);
+      if (result.style) lines.push(`风格：${result.style}`);
+      if (result.mood) lines.push(`情绪：${result.mood}`);
+      if (result.tempo) lines.push(`速度：${result.tempo}`);
+      if (Array.isArray(result.instruments) && result.instruments.length) lines.push(`乐器：${result.instruments.join('、')}`);
+      if (result.detected) {
+        const detected = Object.entries(result.detected).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`);
+        if (detected.length) lines.push(`识别信息：${detected.join('；')}`);
+      }
+      if (Array.isArray(result.scenes) && result.scenes.length) {
+        lines.push('\n分镜：');
+        result.scenes.slice(0, 8).forEach((scene, index) => {
+          lines.push(`${index + 1}. ${typeof scene === 'string' ? scene : JSON.stringify(scene)}`);
+        });
+      }
+      if (result.subtitleStyle) lines.push(`字幕风格：${result.subtitleStyle}`);
+      if (result.visualStyle) lines.push(`视觉风格：${result.visualStyle}`);
+      if (result.prompt) lines.push(`\n生成提示词：${result.prompt}`);
+      const suggestions = result.suggestions || result.tips || result.nextSteps;
+      if (Array.isArray(suggestions) && suggestions.length) {
+        lines.push('\n建议：');
+        suggestions.slice(0, 8).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
+      }
+      return lines.join('\n') || shortJson(result);
+    }
+
+    function toolFileProblem(action, file) {
+      if (!file) return '';
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const sizeMb = file.size / 1024 / 1024;
+      const audioMurekaTools = ['song-extend', 'recognize', 'describe', 'lyrics-video', 'stem', 'region-editing'];
+      if (action === 'vocal-cloning') {
+        if (!['mp3', 'm4a'].includes(ext)) return '人声克隆只支持 MP3 或 M4A。请把授权人声音频转成 MP3/M4A，建议 15-30 秒，小于 10MB。';
+        if (file.size > 10 * 1024 * 1024) return `人声克隆文件需要小于 10MB。当前约 ${sizeMb.toFixed(1)}MB，请截取 15-30 秒清晰人声后再上传。`;
+      }
+      if (audioMurekaTools.includes(action)) {
+        if (!['mp3', 'm4a'].includes(ext)) return `${toolLabels[action]} 需要 MP3 或 M4A 音频。当前是 ${ext.toUpperCase()}，请先转成 MP3/M4A 后再试。`;
+        if (file.size > 30 * 1024 * 1024) return `${toolLabels[action]} 建议上传 30MB 以内音频。当前约 ${sizeMb.toFixed(1)}MB，请先压缩或截取较短片段。`;
+      }
+      if (action === 'soundtrack') {
+        if (!['mp3', 'm4a', 'mp4', 'mov', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) return '视频/图片配乐支持 MP3、M4A、MP4、MOV、PNG、JPG、WEBP。请先转换素材格式。';
+        if (file.size > 80 * 1024 * 1024) return `视频/图片配乐素材过大，当前约 ${sizeMb.toFixed(1)}MB，请压缩到 80MB 以内。`;
+      }
+      return '';
+    }
+
     async function runMurekaTool(action) {
       if (!state.user) {
         showToast('请先登录，再使用创作增强工具。');
@@ -5075,6 +5126,15 @@
       if (needsMaterial && !file && !state.current) {
         showToast('这个功能需要先上传素材，或先生成/播放一首歌曲。');
         if (fileInput) fileInput.focus();
+        return;
+      }
+      const fileProblem = toolFileProblem(action, file);
+      if (fileProblem) {
+        if (resultBox) {
+          resultBox.classList.remove('empty');
+          resultBox.textContent = fileProblem;
+        }
+        showToast(fileProblem);
         return;
       }
       if (uploadOnlyMp3M4a && file && !/\.(mp3|m4a)$/i.test(file.name)) {
@@ -5146,7 +5206,7 @@
           }, urls);
         }
         if (resultBox) {
-          resultBox.innerHTML = `<b>${label}完成</b>\n${urls.length ? `已添加 ${urls.length} 个可播放结果到右侧作品区。\n\n` : ''}${escapeHtml(shortJson(data.result || data))}`;
+          resultBox.innerHTML = `<b>${label}完成</b>\n${urls.length ? `已添加 ${urls.length} 个可播放结果到右侧作品区。\n\n` : ''}${escapeHtml(formatToolResult(label, data.result || data))}`;
         }
         showToast(urls.length ? `${label}完成，已放入作品区。` : `${label}完成，结果已显示。`);
       } catch (error) {

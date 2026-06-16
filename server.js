@@ -231,7 +231,7 @@ function readBody(req) {
   });
 }
 
-function readRawBody(req, limit = 40 * 1024 * 1024) {
+function readRawBody(req, limit = 120 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -1122,6 +1122,57 @@ async function callTextModel(payload) {
   throw new Error('No text model API configured.');
 }
 
+async function callTextJson(system, user) {
+  const provider = textModelProvider();
+  if (provider === 'deepseek') {
+    const model = process.env.DEEPSEEK_TEXT_MODEL || 'deepseek-chat';
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        response_format: { type: 'json_object' },
+        temperature: 0.75,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ]
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'DeepSeek request failed');
+    return { provider, result: JSON.parse(cleanJsonContent(data.choices?.[0]?.message?.content || '{}')) };
+  }
+  if (provider === 'openrouter') {
+    const model = process.env.OPENROUTER_TEXT_MODEL || 'openrouter/free';
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.PUBLIC_SITE_URL || 'https://example.com',
+        'X-Title': 'Shenghuoji AI'
+      },
+      body: JSON.stringify({
+        model,
+        response_format: { type: 'json_object' },
+        temperature: 0.75,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ]
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'OpenRouter request failed');
+    return { provider, result: JSON.parse(cleanJsonContent(data.choices?.[0]?.message?.content || '{}')) };
+  }
+  throw new Error('No text model API configured.');
+}
+
 async function callMiniMax(payload) {
   if (!process.env.MINIMAX_API_KEY) throw new Error('MINIMAX_API_KEY is missing.');
   const model = process.env.MINIMAX_MUSIC_MODEL || 'music-2.6';
@@ -1291,7 +1342,67 @@ function murekaUploadPurpose(action) {
   return 'audio';
 }
 
+function validateMurekaToolFile(action, file) {
+  if (!file) return;
+  const filename = String(file.filename || '');
+  const sizeMb = file.data.length / 1024 / 1024;
+  const isAudioTool = ['song-extend', 'recognize', 'describe', 'lyrics-video', 'stem', 'region-editing'].includes(action);
+  if (isAudioTool && !/\.(mp3|m4a)$/i.test(filename)) {
+    throw new Error(`${toolActionName(action)} 需要上传 MP3 或 M4A 音频。你当前上传的是 ${path.extname(filename).replace('.', '').toUpperCase() || '未知格式'}，请先把 WAV 转成 MP3/M4A 后再用。`);
+  }
+  if (isAudioTool && file.data.length > 30 * 1024 * 1024) {
+    throw new Error(`${toolActionName(action)} 上传音频建议小于 30MB。当前约 ${sizeMb.toFixed(1)}MB，请先压缩或截取较短片段。`);
+  }
+  if (action === 'soundtrack' && !/\.(mp3|m4a|mp4|mov|png|jpe?g|webp)$/i.test(filename)) {
+    throw new Error('视频/图片配乐支持 MP3、M4A、MP4、MOV、PNG、JPG、WEBP。请先转换素材格式。');
+  }
+  if (action === 'soundtrack' && file.data.length > 80 * 1024 * 1024) {
+    throw new Error(`视频/图片配乐素材过大，当前约 ${sizeMb.toFixed(1)}MB。请先压缩到 80MB 以内。`);
+  }
+}
+
+function toolActionName(action) {
+  return ({
+    'lyrics-extend': '续写歌词',
+    'song-extend': '歌曲延长',
+    'vocal-cloning': '人声克隆',
+    recognize: '歌曲识别',
+    describe: '歌曲描述',
+    'lyrics-video': '歌词视频',
+    stem: 'Stem 分轨',
+    'region-editing': '局部重做',
+    soundtrack: '视频/图片配乐'
+  })[action] || '增强工具';
+}
+
+async function callTextTool(action, body, file) {
+  const common = [
+    `功能：${toolActionName(action)}`,
+    `歌曲名：${body.title || ''}`,
+    `用户要求：${body.instruction || body.prompt || ''}`,
+    `歌词：${body.lyrics || ''}`,
+    `风格：${body.style || ''}`,
+    `情绪：${body.mood || ''}`,
+    `语言：${body.language || ''}`,
+    `声音：${body.voiceType || ''}`,
+    file ? `上传素材：${file.filename}，大小约 ${(file.data.length / 1024 / 1024).toFixed(1)}MB` : '未上传素材'
+  ].join('\n');
+  const prompts = {
+    'lyrics-extend': '你是中文歌词创作助手。请根据已有歌词和用户要求续写歌词，只返回 JSON：{"summary":"","lyrics":"","tips":[]}。歌词要包含 [Verse] / [Chorus] 等结构。',
+    describe: '你是音乐制作顾问。请根据用户填写的信息和上传文件名，分析歌曲风格方向。只返回 JSON：{"summary":"","style":"","mood":"","tempo":"","instruments":[],"suggestions":[]}。',
+    recognize: '你是音乐识别结果整理助手。无法直接听音频时，请根据文件名、用户要求和已填风格生成一份“待确认识别报告”。只返回 JSON：{"summary":"","detected":{"title":"","style":"","mood":"","language":"","vocal":""},"nextSteps":[]}。',
+    'lyrics-video': '你是歌词视频导演。请根据歌词和风格生成歌词视频方案。只返回 JSON：{"summary":"","scenes":[],"subtitleStyle":"","visualStyle":"","prompt":""}。'
+  };
+  const system = prompts[action];
+  if (!system) return null;
+  const { provider, result } = await callTextJson(system, common);
+  return { provider, action, mode: 'text-assist', result };
+}
+
 async function callMurekaTool(action, body, file) {
+  const textResult = await callTextTool(action, body, file);
+  if (textResult) return textResult;
+  validateMurekaToolFile(action, file);
   if (action === 'vocal-cloning') {
     if (!file) throw new Error('人声克隆需要上传已授权的人声样本。');
     const filename = String(file.filename || '');
@@ -1328,10 +1439,10 @@ async function callMurekaTool(action, body, file) {
     'song-extend': '/v1/song/extend',
     recognize: '/v1/song/recognize',
     describe: '/v1/song/describe',
-    'lyrics-video': '/v1/song/lyrics-video',
+    'lyrics-video': '/v1/lyrics-video/generate',
     stem: '/v1/song/stem',
-    'region-editing': '/v1/song/region-editing',
-    soundtrack: '/v1/song/generate-soundtrack'
+    'region-editing': '/v1/song/region-edit',
+    soundtrack: '/v1/soundtrack/generate'
   };
   const endpoint = endpointMap[action];
   if (!endpoint) throw new Error('Unsupported Mureka tool action.');
