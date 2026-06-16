@@ -4750,9 +4750,19 @@
       const fileInput = $('toolFile');
       const file = fileInput && fileInput.files ? fileInput.files[0] : null;
       const needsMaterial = ['song-extend', 'vocal-cloning', 'recognize', 'describe', 'lyrics-video', 'stem', 'region-editing', 'soundtrack'].includes(action);
+      const uploadOnlyMp3M4a = ['song-extend', 'vocal-cloning', 'recognize', 'describe', 'stem', 'region-editing'].includes(action);
       if (needsMaterial && !file && !state.current) {
         showToast('这个功能需要先上传素材，或先生成/播放一首歌曲。');
         if (fileInput) fileInput.focus();
+        return;
+      }
+      if (uploadOnlyMp3M4a && file && !/\.(mp3|m4a)$/i.test(file.name)) {
+        const message = `${label}只支持 MP3 或 M4A。你当前上传的是 ${file.name.split('.').pop().toUpperCase()}，请先转成 MP3/M4A 后再上传。`;
+        if (resultBox) {
+          resultBox.classList.remove('empty');
+          resultBox.textContent = message;
+        }
+        showToast(message);
         return;
       }
       if (action === 'vocal-cloning' && file) {

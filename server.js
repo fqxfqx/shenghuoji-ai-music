@@ -1283,6 +1283,14 @@ function firstUploadedFile(files) {
   return files.sample || files.audio || files.media || files.voice || Object.values(files)[0] || null;
 }
 
+function murekaUploadPurpose(action) {
+  if (action === 'soundtrack') return 'soundtrack';
+  if (action === 'lyrics-video') return 'lyrics-video';
+  if (action === 'vocal-cloning') return 'voice';
+  if (action === 'remix') return 'remix';
+  return 'audio';
+}
+
 async function callMurekaTool(action, body, file) {
   if (action === 'vocal-cloning') {
     if (!file) throw new Error('人声克隆需要上传已授权的人声样本。');
@@ -1331,12 +1339,9 @@ async function callMurekaTool(action, body, file) {
   delete payload.action;
 
   if (file) {
-    const purpose = action === 'vocal-cloning'
-      ? 'vocal_cloning'
-      : action === 'soundtrack'
-        ? 'soundtrack'
-        : 'song';
+    const purpose = murekaUploadPurpose(action);
     const uploaded = await uploadMurekaFile(file, purpose);
+    payload.upload_id = payload.upload_id || uploaded.id;
     payload.upload_audio_id = payload.upload_audio_id || uploaded.id;
     payload.audio_id = payload.audio_id || uploaded.id;
     payload.file_id = payload.file_id || uploaded.id;
