@@ -837,6 +837,67 @@ function normalizeLyrics(payload) {
     ].join('\n');
   }
   const baseLine = provided || prompt;
+  const language = languageProfile(payload.language);
+  if (/english/i.test(language.code)) {
+    return [
+      '[Verse]',
+      `I turn this story into a simple song: ${baseLine}`,
+      'Every honest word can find a melody',
+      'Every ordinary day can shine a little brighter',
+      '',
+      '[Pre-Chorus]',
+      'Let the feeling rise, let the rhythm carry on',
+      'Keep it clear, heartfelt, and easy to remember',
+      '',
+      '[Chorus]',
+      'I want to sing this song to you',
+      'With a real voice and a heart that is true',
+      'Hold this moment, let it stay',
+      'Let the music light the way'
+    ].join('\n');
+  }
+  if (/japanese/i.test(language.code)) {
+    return [
+      '[Verse]',
+      `この物語を歌にして: ${baseLine}`,
+      '小さな日々にも光がある',
+      '心の言葉をそっと届ける',
+      '',
+      '[Chorus]',
+      'この歌をあなたへ',
+      'まっすぐな声で届けたい',
+      '今この瞬間が',
+      '明日へ続いていく'
+    ].join('\n');
+  }
+  if (/korean/i.test(language.code)) {
+    return [
+      '[Verse]',
+      `이 이야기를 노래로 불러요: ${baseLine}`,
+      '평범한 하루에도 빛이 있어',
+      '마음속 말을 천천히 전해요',
+      '',
+      '[Chorus]',
+      '이 노래를 너에게 부를게',
+      '진심 어린 목소리로 가까이 갈게',
+      '오늘의 순간을 기억해',
+      '우리의 마음이 노래가 돼'
+    ].join('\n');
+  }
+  if (/cantonese/i.test(language.code)) {
+    return [
+      '[Verse]',
+      `將呢個故事唱出嚟：${baseLine}`,
+      '平凡日子都有光',
+      '心入面嘅說話慢慢講',
+      '',
+      '[Chorus]',
+      '我想將呢首歌唱畀你聽',
+      '用最真嘅聲靠近你心情',
+      '呢一刻唔需要太多證明',
+      '生活入面都有回應'
+    ].join('\n');
+  }
   return [
     '[Verse]',
     baseLine,
@@ -855,6 +916,64 @@ function normalizeLyrics(payload) {
   ].join('\n');
 }
 
+function languageProfile(language) {
+  const text = String(language || '中文').trim();
+  if (/英|english/i.test(text)) {
+    return {
+      code: 'english',
+      label: text,
+      songLine: 'English vocal pop song, all sung lyrics must be in English',
+      lyricRule: 'Use English lyrics only. Do not insert Chinese lines unless the user explicitly asks for bilingual lyrics.'
+    };
+  }
+  if (/中英|双语|bilingual/i.test(text)) {
+    return {
+      code: 'bilingual',
+      label: text,
+      songLine: 'Chinese-English bilingual vocal song, mix Mandarin Chinese and English naturally',
+      lyricRule: 'Use a natural Chinese-English mix. Keep each section singable and do not switch randomly.'
+    };
+  }
+  if (/粤|廣東|广东|cantonese/i.test(text)) {
+    return {
+      code: 'cantonese',
+      label: text,
+      songLine: 'Cantonese vocal pop song, all sung lyrics should be Cantonese',
+      lyricRule: 'Use Cantonese lyrics. Do not convert the song into Mandarin unless the user asks for Mandarin.'
+    };
+  }
+  if (/日|japanese/i.test(text)) {
+    return {
+      code: 'japanese',
+      label: text,
+      songLine: 'Japanese vocal pop song, all sung lyrics must be in Japanese',
+      lyricRule: 'Use Japanese lyrics only. Do not insert Chinese lines unless the user asks for bilingual lyrics.'
+    };
+  }
+  if (/韩|韓|korean/i.test(text)) {
+    return {
+      code: 'korean',
+      label: text,
+      songLine: 'Korean vocal pop song, all sung lyrics must be in Korean',
+      lyricRule: 'Use Korean lyrics only. Do not insert Chinese lines unless the user asks for bilingual lyrics.'
+    };
+  }
+  if (/四川|东北|閩南|闽南|方言|dialect/i.test(text)) {
+    return {
+      code: 'mandarin-dialect',
+      label: text,
+      songLine: `Mandarin Chinese vocal song with ${text} accent or dialect flavor`,
+      lyricRule: `Use Chinese lyrics with ${text}口吻. Keep the wording natural and singable.`
+    };
+  }
+  return {
+    code: 'mandarin',
+    label: text || '中文',
+    songLine: 'Mandarin Chinese vocal pop song, all sung lyrics must be in Chinese',
+    lyricRule: 'Use Chinese lyrics only unless the user explicitly asks for another language.'
+  };
+}
+
 function murekaVoicePrompt(voiceType) {
   const text = String(voiceType || '');
   if (/男女|对唱|合唱|duet/i.test(text)) return 'male and female duet vocals, two distinct singers';
@@ -866,20 +985,20 @@ function murekaVoicePrompt(voiceType) {
 
 function murekaStylePrompt(style) {
   const text = String(style || '');
-  if (/节奏布鲁斯|R&B|r&b/i.test(text)) return 'Chinese R&B, soulful groove, smooth drums, warm bass';
-  if (/说唱|rap|hip.?hop/i.test(text)) return 'Mandarin rap hip-hop, clear rhythmic vocal delivery';
+  if (/节奏布鲁斯|R&B|r&b/i.test(text)) return 'R&B, soulful groove, smooth drums, warm bass';
+  if (/说唱|rap|hip.?hop/i.test(text)) return 'rap hip-hop, clear rhythmic vocal delivery';
   if (/电子|舞曲|EDM/i.test(text)) return 'electronic dance pop, modern synths, energetic beat';
   if (/未来|贝斯|future/i.test(text)) return 'future bass, wide synth chords, punchy electronic drums';
   if (/低保真|lo.?fi/i.test(text)) return 'lo-fi pop, relaxed beat, warm tape texture';
   if (/国风/i.test(text)) return 'Chinese traditional fusion pop, guzheng and modern pop rhythm';
   if (/摇滚|rock/i.test(text)) return 'indie rock, live drums, electric guitars, strong chorus';
   if (/金属|metal/i.test(text)) return 'metal rock, heavy guitars, powerful drums';
-  if (/民谣|folk/i.test(text)) return 'Chinese folk ballad, acoustic guitar, intimate vocal';
+  if (/民谣|folk/i.test(text)) return 'folk ballad, acoustic guitar, intimate vocal';
   if (/爵士|jazz/i.test(text)) return 'jazz pop, soft piano, upright bass, brushed drums';
   if (/儿童/i.test(text)) return 'children song, bright melody, simple chorus';
   if (/古典/i.test(text)) return 'classical crossover pop, strings and piano';
-  if (/流行|pop/i.test(text)) return 'Mandarin Chinese pop, memorable melody, radio-ready arrangement';
-  return `${text}, Mandarin Chinese pop`;
+  if (/流行|pop/i.test(text)) return 'pop, memorable melody, radio-ready arrangement';
+  return `${text || 'pop'}, memorable melody, radio-ready arrangement`;
 }
 
 function murekaMoodPrompt(mood) {
@@ -896,13 +1015,14 @@ function murekaMoodPrompt(mood) {
 
 function sampleControlPrompt(payload) {
   const styleInfluence = Math.max(10, Math.min(100, Number(payload.styleInfluence || 70)));
+  const priority = 'The user prompt, lyrics, selected language, vocal gender, and selected style are higher priority than the reference audio.';
   if (styleInfluence >= 85) {
-    return `Use the uploaded audio as a strong reference: keep a very similar tempo, energy curve, song section structure, groove, and overall vibe. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
+    return `${priority} Use the uploaded audio as a strong reference for tempo, energy curve, section structure, groove, and overall vibe. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
   }
   if (styleInfluence >= 55) {
-    return `Use the uploaded audio as a medium reference: keep a similar vibe, tempo range, rhythm feel, and chorus energy. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
+    return `${priority} Use the uploaded audio as a medium reference for vibe, tempo range, rhythm feel, and chorus energy. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
   }
-  return `Use the uploaded audio as a light inspiration only. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
+  return `${priority} Use the uploaded audio as a light inspiration only. Reference influence ${styleInfluence} percent. Do not copy the exact melody or imitate the original singer.`;
 }
 
 function buildMurekaPrompt(payload) {
@@ -910,7 +1030,7 @@ function buildMurekaPrompt(payload) {
   const mood = String(payload.mood || '真诚温暖').trim();
   const usecase = String(payload.usecase || '生活写歌').trim();
   const voiceType = String(payload.voiceType || '自然中文人声').trim();
-  const language = String(payload.language || '中文').trim();
+  const language = languageProfile(payload.language);
   const styleInfluence = Number(payload.styleInfluence || 70);
   const userPrompt = String(payload.prompt || '为普通人的生活故事写一首中文歌曲').trim();
   const voicePrompt = murekaVoicePrompt(voiceType);
@@ -928,7 +1048,8 @@ function buildMurekaPrompt(payload) {
       'full instrumental track with clear intro, verse-like development, hook section, and ending',
       durationSource,
       `style influence ${styleInfluence} percent`,
-      `language: ${language}`,
+      `language: ${language.label}`,
+      language.lyricRule,
       `use case: ${usecase}`,
       `user direction: ${userPrompt}`,
       'strictly follow the selected genre',
@@ -939,13 +1060,15 @@ function buildMurekaPrompt(payload) {
     `Primary genre and arrangement: ${stylePrompt}`,
     `Mood: ${moodPrompt}`,
     `Vocal requirement: ${voicePrompt}`,
-    'Mandarin Chinese pop song with clear lead sung vocals',
+    language.songLine,
     'full song, verse and chorus, radio-ready mix',
     durationSource,
     `style influence ${styleInfluence} percent`,
-    `language: ${language}`,
+    `language: ${language.label}`,
+    language.lyricRule,
     `use case: ${usecase}`,
     `user direction: ${userPrompt}`,
+    'create exactly one final song version, do not create multiple alternate takes',
     'strictly follow the selected genre and selected vocal gender',
     'must be vocal song, not instrumental, not soundtrack, not background music'
   ].join(', ');
@@ -1019,14 +1142,16 @@ function songHelperMessages(payload) {
   const story = String(payload.story || payload.prompt || '').trim();
   const theme = String(payload.theme || payload.style || '中文歌曲').trim();
   const tone = String(payload.tone || payload.mood || '真诚自然').trim();
+  const language = languageProfile(payload.language);
   const strict = payload.strict === true;
   return [
     {
       role: 'system',
       content: [
-        '你是一个面向普通人的中文写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。',
+        '你是一个面向普通人的写歌助手。只返回 JSON，不要 Markdown。字段必须包含：title, prompt, lyrics, style, mood, voiceType, duration, shareText。',
         '必须紧扣用户给出的故事、对象、用途和情绪，不允许写成泛泛的生活感悟，不允许擅自改成失恋、离别、遗忘、铺路等无关主题。',
         '歌词要像真实的人在说心里话，适合直接交给音乐生成模型演唱。不要模仿真实歌手，不要改写已有歌曲。',
+        `语言硬性要求：${language.lyricRule}`,
         strict ? '这是一次纠偏重试：上一次结果跑题了。你必须在 title、prompt、lyrics、shareText 中明确体现用户故事里的核心对象和用途。' : ''
       ].filter(Boolean).join(' ')
     },
@@ -1036,8 +1161,10 @@ function songHelperMessages(payload) {
         `故事/需求：${story}`,
         `主题/用途：${theme}`,
         `情绪/口吻：${tone}`,
+        `歌曲语言：${language.label}`,
         '请严格围绕上面的故事/需求创作，歌名、prompt、歌词、分享文案都要能看出这个具体主题。',
-        '歌词至少包含 [Verse] 和 [Chorus]，如果是送给某个人，要直接表达给这个人的话。'
+        '歌词至少包含 [Verse] 和 [Chorus]，如果是送给某个人，要直接表达给这个人的话。',
+        'prompt 字段也要明确写出歌曲语言、风格、用途、人声性别和主题关键词。'
       ].join('\n')
     }
   ];
@@ -1252,11 +1379,12 @@ function pickLyrics(raw) {
 
 async function callMurekaLyrics(payload) {
   const userPrompt = String(payload.prompt || payload.story || '').trim();
-  const language = String(payload.language || '中文').trim();
+  const language = languageProfile(payload.language);
   const style = String(payload.style || '中文流行').trim();
   const mood = String(payload.mood || '真诚温暖').trim();
   const prompt = [
-    `Write original ${language} song lyrics.`,
+    `Write original song lyrics in this language: ${language.label}.`,
+    language.lyricRule,
     `Topic: ${userPrompt}.`,
     `Style: ${style}.`,
     `Mood: ${mood}.`,
@@ -1481,7 +1609,7 @@ async function callMurekaWithReference(payload, sampleFile) {
       ...payload,
       prompt: [
         String(payload.prompt || ''),
-        `The user uploaded a reference audio file named "${sampleName}". Use it only as a text-level creative reference from the filename and user direction. Do not upload or copy the original audio. Create a new song that follows the requested style, lyrics, language, and vocal type.`
+        `The user uploaded a reference audio file named "${sampleName}". Use it only as a text-level creative reference from the filename and user direction. The selected language, lyrics, vocal gender, genre, and user topic are higher priority than this reference. Do not upload or copy the original audio. Create a new song that follows the requested style, lyrics, language, and vocal type.`
       ].filter(Boolean).join(' ')
     });
   }
@@ -1537,11 +1665,41 @@ async function checkMurekaAccount() {
   return data;
 }
 
+async function prepareGenerationPayload(body) {
+  const next = { ...body };
+  const hasUsableLyrics = String(next.lyrics || '').trim().replace(/\s+/g, '').length >= 20;
+  if (next.vocals !== false && !hasUsableLyrics && textModelProvider()) {
+    try {
+      const result = await callTextModel({
+        ...next,
+        story: next.prompt,
+        theme: next.usecase || next.style,
+        tone: next.mood
+      });
+      const lyrics = String(result.helper?.lyrics || '').trim();
+      if (lyrics) {
+        next.lyrics = lyrics;
+        next.prompt = [
+          String(next.prompt || '').trim(),
+          String(result.helper?.prompt || '').trim()
+        ].filter(Boolean).join('。');
+        next._lyricsGeneratedBy = result.provider;
+      }
+    } catch (error) {
+      next._lyricsGeneratedBy = 'fallback';
+      next._lyricsError = error.message || 'lyrics helper failed';
+    }
+  }
+  return next;
+}
+
 async function submitGenerationTask(task, body, sampleFile) {
   try {
     const provider = task.provider;
-    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaWithReference(body, sampleFile);
-    const audioUrls = findAudioUrls(raw);
+    const preparedBody = await prepareGenerationPayload(body);
+    task.payload = preparedBody;
+    const raw = provider === 'minimax' ? await callMiniMax(preparedBody) : await callMurekaWithReference(preparedBody, sampleFile);
+    const audioUrls = findAudioUrls(raw).slice(0, 1);
     task.raw = raw;
     task.providerTaskId = pickProviderTaskId(raw, task.id);
     task.queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
@@ -1866,7 +2024,7 @@ async function handleApi(req, res, url) {
       const providerRaw = await queryMurekaTask(task.providerTaskId, task.queryKind);
       task.raw = providerRaw;
       task.status = pickStatus(providerRaw, task.status);
-      task.audioUrls = findAudioUrls(providerRaw);
+      task.audioUrls = findAudioUrls(providerRaw).slice(0, 1);
       await saveGeneratedSong(task);
       tasks.set(id, task);
     }
