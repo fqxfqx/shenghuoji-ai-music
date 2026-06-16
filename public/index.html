@@ -692,11 +692,84 @@
       min-height: 72px;
       max-height: 260px;
       overflow: auto;
-      white-space: pre-wrap;
       text-align: left;
       border-style: solid;
       border-color: rgba(34, 211, 238, 0.28);
-      background: rgba(20, 184, 166, 0.08);
+      background: rgba(255, 255, 255, 0.035);
+      white-space: normal;
+    }
+
+    .tool-result-card {
+      display: grid;
+      gap: 12px;
+      padding: 2px;
+    }
+
+    .tool-result-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tool-result-head b {
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .tool-result-head span {
+      display: block;
+      margin-top: 4px;
+      color: rgba(244, 244, 245, 0.62);
+      font-size: 12px;
+    }
+
+    .tool-result-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tool-result-actions .btn {
+      width: auto;
+      padding: 7px 11px;
+      font-size: 12px;
+    }
+
+    .tool-result-content {
+      display: grid;
+      gap: 10px;
+      color: rgba(244, 244, 245, 0.84);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .tool-result-section {
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    .tool-result-section h4 {
+      margin: 0 0 6px;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+
+    .tool-result-section p,
+    .tool-result-section pre {
+      margin: 0;
+    }
+
+    .tool-result-section pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      color: rgba(244, 244, 245, 0.86);
     }
 
     .option-card b,
@@ -3495,6 +3568,7 @@
       lastHelper: null,
       lastCoverIdea: null,
       lastMvIdea: null,
+      lastToolResultText: '',
       posts: [
         {
           author: '春梅',
@@ -3635,6 +3709,7 @@
         $('toolResult').classList.add('empty');
         $('toolResult').textContent = '还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。生成出的音频会出现在右侧“工作区作品”，可以直接播放和下载。';
       }
+      state.lastToolResultText = '';
       showToast('增强工具素材已删除。');
     }
 
@@ -5057,35 +5132,128 @@
       return text.length > 1800 ? text.slice(0, 1800) + '\n...' : text;
     }
 
-    function formatToolResult(label, value) {
-      const result = value?.result || value;
+    function normalizeToolResult(value) {
+      let result = value;
+      for (let i = 0; i < 3; i += 1) {
+        if (result && typeof result === 'object' && result.result && (result.mode || result.provider || result.action || !result.summary)) {
+          result = result.result;
+        }
+      }
+      return result || value;
+    }
+
+    function resultSection(title, body) {
+      if (!body) return '';
+      return `<section class="tool-result-section"><h4>${escapeHtml(title)}</h4><pre>${escapeHtml(body)}</pre></section>`;
+    }
+
+    function listText(items) {
+      if (!Array.isArray(items) || !items.length) return '';
+      return items.slice(0, 8).map((item, index) => `${index + 1}. ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n');
+    }
+
+    function formatToolResultText(label, value) {
+      const result = normalizeToolResult(value);
       if (!result || typeof result !== 'object') return shortJson(result || value);
-      const lines = [];
-      if (result.summary) lines.push(`结果：${result.summary}`);
-      if (result.lyrics) lines.push(`\n歌词：\n${result.lyrics}`);
-      if (result.style) lines.push(`风格：${result.style}`);
-      if (result.mood) lines.push(`情绪：${result.mood}`);
-      if (result.tempo) lines.push(`速度：${result.tempo}`);
-      if (Array.isArray(result.instruments) && result.instruments.length) lines.push(`乐器：${result.instruments.join('、')}`);
+      const parts = [];
+      if (result.summary) parts.push(`结果：${result.summary}`);
+      if (result.lyrics) parts.push(`歌词：\n${result.lyrics}`);
       if (result.detected) {
-        const detected = Object.entries(result.detected).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`);
-        if (detected.length) lines.push(`识别信息：${detected.join('；')}`);
+        const names = { title: '标题', style: '风格', mood: '情绪', language: '语言', vocal: '人声' };
+        const detected = Object.entries(result.detected)
+          .filter(([, v]) => v)
+          .map(([k, v]) => `${names[k] || k}：${v}`)
+          .join('\n');
+        if (detected) parts.push(`识别信息：\n${detected}`);
       }
-      if (Array.isArray(result.scenes) && result.scenes.length) {
-        lines.push('\n分镜：');
-        result.scenes.slice(0, 8).forEach((scene, index) => {
-          lines.push(`${index + 1}. ${typeof scene === 'string' ? scene : JSON.stringify(scene)}`);
-        });
-      }
-      if (result.subtitleStyle) lines.push(`字幕风格：${result.subtitleStyle}`);
-      if (result.visualStyle) lines.push(`视觉风格：${result.visualStyle}`);
-      if (result.prompt) lines.push(`\n生成提示词：${result.prompt}`);
+      const detail = [
+        result.style ? `风格：${result.style}` : '',
+        result.mood ? `情绪：${result.mood}` : '',
+        result.tempo ? `速度：${result.tempo}` : '',
+        Array.isArray(result.instruments) && result.instruments.length ? `乐器：${result.instruments.join('、')}` : '',
+        result.subtitleStyle ? `字幕风格：${result.subtitleStyle}` : '',
+        result.visualStyle ? `视觉风格：${result.visualStyle}` : ''
+      ].filter(Boolean).join('\n');
+      if (detail) parts.push(detail);
+      if (Array.isArray(result.scenes) && result.scenes.length) parts.push(`分镜：\n${listText(result.scenes)}`);
+      if (result.prompt) parts.push(`生成提示词：\n${result.prompt}`);
       const suggestions = result.suggestions || result.tips || result.nextSteps;
-      if (Array.isArray(suggestions) && suggestions.length) {
-        lines.push('\n建议：');
-        suggestions.slice(0, 8).forEach((item, index) => lines.push(`${index + 1}. ${item}`));
+      if (Array.isArray(suggestions) && suggestions.length) parts.push(`建议：\n${listText(suggestions)}`);
+      return parts.join('\n\n') || shortJson(result);
+    }
+
+    function renderToolResultCard(label, value, urls = []) {
+      const result = normalizeToolResult(value);
+      const text = formatToolResultText(label, value);
+      state.lastToolResultText = text;
+      const playable = urls.length ? `已生成 ${urls.length} 个音频结果，已经放入右侧作品区，可以直接播放和下载。` : '这是辅助结果，可复制，也可以一键写回歌词或创作提示。';
+      const sections = [];
+      if (result && typeof result === 'object') {
+        sections.push(resultSection('结果说明', result.summary || playable));
+        if (result.lyrics) sections.push(resultSection('可用歌词', result.lyrics));
+        if (result.detected) {
+          const names = { title: '标题', style: '风格', mood: '情绪', language: '语言', vocal: '人声' };
+          const detected = Object.entries(result.detected).filter(([, v]) => v).map(([k, v]) => `${names[k] || k}：${v}`).join('\n');
+          sections.push(resultSection('识别信息', detected));
+        }
+        const detail = [
+          result.style ? `风格：${result.style}` : '',
+          result.mood ? `情绪：${result.mood}` : '',
+          result.tempo ? `速度：${result.tempo}` : '',
+          Array.isArray(result.instruments) && result.instruments.length ? `乐器：${result.instruments.join('、')}` : '',
+          result.subtitleStyle ? `字幕风格：${result.subtitleStyle}` : '',
+          result.visualStyle ? `视觉风格：${result.visualStyle}` : ''
+        ].filter(Boolean).join('\n');
+        sections.push(resultSection('制作参考', detail));
+        if (Array.isArray(result.scenes) && result.scenes.length) sections.push(resultSection('视频分镜', listText(result.scenes)));
+        if (result.prompt) sections.push(resultSection('可用提示词', result.prompt));
+        const suggestions = result.suggestions || result.tips || result.nextSteps;
+        if (Array.isArray(suggestions) && suggestions.length) sections.push(resultSection('下一步建议', listText(suggestions)));
       }
-      return lines.join('\n') || shortJson(result);
+      if (!sections.filter(Boolean).length) sections.push(resultSection('结果内容', text));
+      const canApplyLyrics = Boolean(result && typeof result === 'object' && result.lyrics);
+      const canApplyPrompt = Boolean(result && typeof result === 'object' && (result.prompt || result.summary));
+      return `
+        <div class="tool-result-card">
+          <div class="tool-result-head">
+            <div><b>${escapeHtml(label)}完成</b><span>${escapeHtml(playable)}</span></div>
+            <div class="tool-result-actions">
+              <button class="btn" type="button" id="copyToolResultBtn">复制结果</button>
+              ${canApplyLyrics ? '<button class="btn" type="button" id="applyToolLyricsBtn">写入歌词</button>' : ''}
+              ${canApplyPrompt ? '<button class="btn" type="button" id="applyToolPromptBtn">写入提示词</button>' : ''}
+            </div>
+          </div>
+          <div class="tool-result-content">${sections.filter(Boolean).join('')}</div>
+        </div>
+      `;
+    }
+
+    function bindToolResultActions(value) {
+      const result = normalizeToolResult(value);
+      if ($('copyToolResultBtn')) $('copyToolResultBtn').addEventListener('click', async () => {
+        const text = state.lastToolResultText || formatToolResultText('结果', result);
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('结果已复制。');
+        } catch {
+          showToast('复制失败，可以手动选中文字复制。');
+        }
+      });
+      if ($('applyToolLyricsBtn')) $('applyToolLyricsBtn').addEventListener('click', () => {
+        if (result?.lyrics) {
+          lyricsEl.value = result.lyrics;
+          updateAutoDuration();
+          showToast('已写入歌词栏。');
+        }
+      });
+      if ($('applyToolPromptBtn')) $('applyToolPromptBtn').addEventListener('click', () => {
+        const next = result?.prompt || result?.summary || '';
+        if (next) {
+          promptEl.value = next;
+          updateAutoDuration();
+          showToast('已写入创作提示。');
+        }
+      });
     }
 
     function toolFileProblem(action, file) {
@@ -5206,7 +5374,8 @@
           }, urls);
         }
         if (resultBox) {
-          resultBox.innerHTML = `<b>${label}完成</b>\n${urls.length ? `已添加 ${urls.length} 个可播放结果到右侧作品区。\n\n` : ''}${escapeHtml(formatToolResult(label, data.result || data))}`;
+          resultBox.innerHTML = renderToolResultCard(label, data.result || data, urls);
+          bindToolResultActions(data.result || data);
         }
         showToast(urls.length ? `${label}完成，已放入作品区。` : `${label}完成，结果已显示。`);
       } catch (error) {
