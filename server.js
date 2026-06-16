@@ -1416,6 +1416,27 @@ async function checkMurekaAccount() {
   return data;
 }
 
+async function submitGenerationTask(task, body, sampleFile) {
+  try {
+    const provider = task.provider;
+    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaWithReference(body, sampleFile);
+    const audioUrls = findAudioUrls(raw);
+    task.raw = raw;
+    task.providerTaskId = pickProviderTaskId(raw, task.id);
+    task.queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
+    task.status = audioUrls.length ? 'completed' : pickStatus(raw, 'processing');
+    task.audioUrls = audioUrls;
+    task.error = null;
+    await saveGeneratedSong(task);
+  } catch (error) {
+    task.status = 'failed';
+    task.error = error.message || 'Music generation failed';
+    task.raw = { error: task.error };
+  } finally {
+    tasks.set(task.id, task);
+  }
+}
+
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/config') {
     const provider = musicProvider();
@@ -1694,8 +1715,6 @@ async function handleApi(req, res, url) {
     const { body, sampleFile } = await readApiPayload(req);
     const provider = musicProvider();
     if (provider === 'demo') throw new Error('No music API key configured.');
-    const raw = provider === 'minimax' ? await callMiniMax(body) : await callMurekaWithReference(body, sampleFile);
-    const audioUrls = findAudioUrls(raw);
     const id = crypto.randomUUID();
     const queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
     const task = {
@@ -1703,16 +1722,16 @@ async function handleApi(req, res, url) {
       userId: user.id,
       provider,
       queryKind,
-      providerTaskId: pickProviderTaskId(raw, id),
-      status: audioUrls.length ? 'completed' : pickStatus(raw, 'processing'),
+      providerTaskId: null,
+      status: 'queued',
       title: String(body.prompt || 'AI Song').slice(0, 28),
       payload: body,
-      audioUrls,
-      raw,
+      audioUrls: [],
+      raw: null,
       saved: false
     };
     tasks.set(id, task);
-    await saveGeneratedSong(task);
+    setTimeout(() => submitGenerationTask(task, body, sampleFile), 0);
     return sendJson(res, 200, task);
   }
 
@@ -1735,6 +1754,7 @@ async function handleApi(req, res, url) {
       provider: task.provider,
       providerTaskId: task.providerTaskId,
       status: task.status,
+      error: task.error || null,
       done: task.audioUrls.length > 0,
       audioUrls: task.audioUrls,
       raw: task.raw

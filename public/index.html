@@ -2101,7 +2101,7 @@
       width: 100%;
       max-width: none;
       margin: 0;
-      padding: 16px 20px 118px;
+      padding: 16px 20px 148px;
     }
 
     .page-view[data-page-view="create"] {
@@ -2182,7 +2182,7 @@
     #create > .panel:first-child {
       position: sticky;
       top: 16px;
-      max-height: calc(100vh - 132px);
+      max-height: calc(100vh - 178px);
       overflow: auto;
       box-shadow: none;
       background: rgba(18, 18, 22, 0.92);
@@ -2377,7 +2377,7 @@
     }
 
     #queue {
-      padding: 8px 10px 132px;
+      padding: 8px 10px 156px;
       gap: 4px;
     }
 
@@ -3702,6 +3702,9 @@
       }
       if (/insufficient|balance|credit|quota/i.test(text)) {
         return 'Mureka 余额或额度不足，请先到 Mureka 控制台充值或确认套餐可用。';
+      }
+      if (/failed to fetch|networkerror|load failed/i.test(text)) {
+        return '网络请求中断了。已把生成任务改成后台提交，请刷新后重试；如果还出现，请换小一点的参考音频或稍后再试。';
       }
       return text || '真实 API 调用失败，已退回本次积分。';
     }
@@ -5278,6 +5281,20 @@
           const response = await fetch('/api/tasks/' + encodeURIComponent(task.providerTaskId));
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || '任务查询失败');
+          if (data.error || /fail|error|invalid|denied/i.test(String(data.status || ''))) {
+            clearInterval(timer);
+            task.status = 'API 失败，未生成';
+            task.error = friendlyApiError(data.error || data.status || '真实 API 生成失败');
+            task.progress = 100;
+            if (!task.refunded) {
+              state.credits += 16;
+              $('credits').textContent = state.credits;
+              task.refunded = true;
+            }
+            renderQueue();
+            showToast(task.error);
+            return;
+          }
           if (data.audioUrls && data.audioUrls.length) {
             clearInterval(timer);
             await addRemoteTracks(task, data.audioUrls);
