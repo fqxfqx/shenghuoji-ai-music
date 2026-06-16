@@ -526,6 +526,33 @@
       font-size: 12px;
     }
 
+    .mini-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn.danger {
+      border-color: rgba(248, 113, 113, 0.36);
+      color: #fecaca;
+      background: rgba(127, 29, 29, 0.18);
+    }
+
+    .btn.danger:hover {
+      border-color: rgba(248, 113, 113, 0.68);
+      background: rgba(127, 29, 29, 0.28);
+    }
+
+    .upload-file-pill {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.055);
+      color: #f8fafc;
+      word-break: break-word;
+    }
+
     .instrumental-mode #lyrics {
       opacity: 0.58;
     }
@@ -554,8 +581,7 @@
     }
 
     .tool-input-panel {
-      position: sticky;
-      top: 12px;
+      position: static;
     }
 
     .tool-output-panel {
@@ -2202,12 +2228,12 @@
     #create #prompt,
     #create #lyrics {
       min-height: 96px;
-      max-height: 180px;
+      max-height: 260px;
       font-size: 13px;
     }
 
     #create .lyrics-large textarea {
-      min-height: 118px;
+      min-height: 150px;
     }
 
     #create .field {
@@ -2325,6 +2351,22 @@
       background: rgba(12, 12, 15, 0.7);
     }
 
+    #mureka-tools .enhance-workbench {
+      grid-template-columns: minmax(340px, 0.92fr) minmax(520px, 1.08fr);
+    }
+
+    #mureka-tools .tool-output-panel {
+      margin-top: 2px;
+      min-height: 132px;
+    }
+
+    #mureka-tools .tool-result {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      white-space: pre-line;
+    }
+
     .studio > .panel:last-child .panel-head {
       position: sticky;
       top: 0;
@@ -2378,12 +2420,112 @@
     }
 
     #queue .icon-btn {
-      width: 34px;
+      min-width: 58px;
       height: 34px;
-      border-radius: 50%;
+      border-radius: 999px;
       color: #f8fafc;
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.075);
+      border-color: rgba(255, 255, 255, 0.12);
+      font-size: 12px;
+      font-weight: 800;
+      padding: 0 12px;
+    }
+
+    #queue .icon-btn:hover {
+      border-color: rgba(45, 212, 191, 0.55);
+      background: rgba(20, 184, 166, 0.16);
+      color: #fff;
+    }
+
+    .track-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .track-title-line b {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .editor-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(3, 7, 18, 0.72);
+      backdrop-filter: blur(14px);
+    }
+
+    .editor-modal.open {
+      display: flex;
+    }
+
+    .editor-card {
+      width: min(920px, 100%);
+      max-height: min(760px, calc(100vh - 40px));
+      display: grid;
+      grid-template-rows: auto minmax(260px, 1fr) auto;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 18px;
+      background: rgba(20, 20, 24, 0.98);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+    }
+
+    .editor-head,
+    .editor-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .editor-actions {
+      justify-content: flex-end;
+      border-top: 1px solid rgba(255, 255, 255, 0.09);
+      border-bottom: 0;
+    }
+
+    .editor-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    #editorText {
+      min-height: 420px;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.04);
+      color: #f8fafc;
+      font-size: 15px;
+      line-height: 1.7;
+      resize: none;
+    }
+
+    .settings-editor {
+      padding: 16px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .settings-editor .field {
+      margin: 0;
+    }
+
+    .settings-editor .wide {
+      grid-column: 1 / -1;
     }
 
     .result-toolbar {
@@ -2458,6 +2600,17 @@
 
       #queue .item-actions {
         grid-column: 2;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      #queue .icon-btn {
+        min-width: 52px;
+        padding: 0 10px;
+      }
+
+      .settings-editor {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -2550,23 +2703,29 @@
               <div class="field lyrics-large">
                 <div class="lyrics-tools">
                   <label for="lyrics">歌词</label>
-                  <button class="btn" id="generateLyricsBtn" type="button">智能写歌词</button>
+                  <div class="mini-actions">
+                    <button class="btn" id="generateLyricsBtn" type="button">智能写歌词</button>
+                    <button class="btn" id="expandLyricsBtn" type="button">放大歌词</button>
+                  </div>
                 </div>
                 <textarea id="lyrics" placeholder="可选。想让歌曲唱具体内容，就把歌词写在这里；不写时系统会根据关键词自动补歌词。"></textarea>
               </div>
               <div class="reference-card">
                 <div class="section-kicker"><span>参考采样</span><span>可选</span></div>
                 <div class="upload-zone compact-upload" id="coverUploadZone">
-                  <input id="coverAudio" type="file" accept=".mp3,.m4a,audio/mpeg,audio/mp4,audio/x-m4a" hidden>
-                  <button class="btn" id="coverPickBtn" type="button">上传音频</button>
-                  <strong id="coverFileName">不上传也可以直接创作</strong>
-                  <small>支持 MP3 / M4A。上传后会走真实参考音频生成，不复制原曲旋律和真实歌手声音。</small>
+                  <input id="coverAudio" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/*" hidden>
+                  <div class="mini-actions">
+                    <button class="btn" id="coverPickBtn" type="button">上传素材</button>
+                    <button class="btn danger" id="clearCoverBtn" type="button">删除素材</button>
+                  </div>
+                  <strong class="upload-file-pill" id="coverFileName">不上传也可以直接创作</strong>
+                  <small>支持 MP3 / M4A / WAV。上传后会作为参考音频生成，不复制原曲旋律和真实歌手声音。</small>
                 </div>
               </div>
             </div>
 
             <div class="compose-side">
-              <div class="section-kicker"><span>Style</span><span>生成设置</span></div>
+              <div class="section-kicker"><span>Style</span><button class="btn" id="expandSettingsBtn" type="button">放大设置</button></div>
               <div class="field">
                 <label for="style">音乐风格</label>
                 <select id="style">
@@ -2747,7 +2906,12 @@
               <div class="tool-choice-group">
                 <div class="field">
                   <label for="toolFile">上传素材</label>
-                  <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*">
+                  <input id="toolFile" type="file" accept=".mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,audio/*,video/*,image/*" hidden>
+                  <div class="mini-actions">
+                    <button class="btn" id="toolPickBtn" type="button">上传素材</button>
+                    <button class="btn danger" id="toolClearBtn" type="button">删除素材</button>
+                  </div>
+                  <strong class="upload-file-pill" id="toolFileName">未上传素材</strong>
                   <p class="tool-input-note">支持音频、视频、图片。做延长、分轨、识别、歌词视频、人声克隆、配乐时，建议先上传对应素材。</p>
                 </div>
                 <div class="field">
@@ -3226,6 +3390,49 @@
   </div>
 
   <div class="toast" id="toast"></div>
+  <div class="editor-modal" id="editorModal" aria-hidden="true">
+    <div class="editor-card">
+      <div class="editor-head">
+        <h2 id="editorTitle">放大编辑</h2>
+        <button class="auth-close" id="editorCloseBtn" type="button" aria-label="关闭">×</button>
+      </div>
+      <textarea id="editorText" placeholder="在这里完整编辑内容"></textarea>
+      <div class="settings-editor" id="settingsEditor" hidden>
+        <div class="field">
+          <label for="modalCustomStyle">音乐风格</label>
+          <input id="modalCustomStyle" placeholder="如：中文流行、广场舞、民谣、电子、企业宣传片配乐">
+        </div>
+        <div class="field">
+          <label for="modalCustomUsecase">用途</label>
+          <input id="modalCustomUsecase" placeholder="如：生日歌、婚礼表白、短视频、门店开业">
+        </div>
+        <div class="field">
+          <label for="modalCustomLanguage">语言 / 口音</label>
+          <input id="modalCustomLanguage" placeholder="如：中文、四川话、东北话、中英混合">
+        </div>
+        <div class="field">
+          <label for="modalCustomVoiceType">声音细分</label>
+          <input id="modalCustomVoiceType" placeholder="如：温柔女声、低沉男声、男女对唱、合唱团">
+        </div>
+        <div class="field">
+          <label for="modalStyleInfluence">风格影响程度</label>
+          <input id="modalStyleInfluence" type="range" min="10" max="100" value="70">
+        </div>
+        <div class="field">
+          <label for="modalVoiceIntensity">人声音色</label>
+          <input id="modalVoiceIntensity" type="range" min="0" max="100" value="70">
+        </div>
+        <div class="field wide">
+          <label for="modalPrompt">关键词 / 创作想法</label>
+          <textarea id="modalPrompt" placeholder="可以把创作想法写完整一点，保存后会同步到左侧输入框。"></textarea>
+        </div>
+      </div>
+      <div class="editor-actions">
+        <button class="btn" id="editorCancelBtn" type="button">取消</button>
+        <button class="btn accent" id="editorApplyBtn" type="button">保存</button>
+      </div>
+    </div>
+  </div>
   <div class="auth-modal" id="authModal" aria-hidden="true">
     <div class="auth-card">
       <div class="auth-card-head">
@@ -3341,6 +3548,109 @@
       toast.classList.add('show');
       clearTimeout(showToast.timer);
       showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function closeEditorModal() {
+      const modal = $('editorModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      modal.dataset.mode = '';
+    }
+
+    function openLyricsEditor() {
+      const modal = $('editorModal');
+      if (!modal || !lyricsEl) return;
+      modal.dataset.mode = 'lyrics';
+      $('editorTitle').textContent = '放大编辑歌词';
+      $('editorText').hidden = false;
+      $('settingsEditor').hidden = true;
+      $('editorText').value = lyricsEl.value || '';
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => $('editorText').focus(), 30);
+    }
+
+    function openSettingsEditor() {
+      const modal = $('editorModal');
+      if (!modal) return;
+      modal.dataset.mode = 'settings';
+      $('editorTitle').textContent = '放大编辑生成设置';
+      $('editorText').hidden = true;
+      $('settingsEditor').hidden = false;
+      $('modalCustomStyle').value = $('customStyle')?.value || styleEl?.value || '';
+      $('modalCustomUsecase').value = $('customUsecase')?.value || usecaseEl?.value || '';
+      $('modalCustomLanguage').value = $('customLanguage')?.value || songLanguageEl?.value || '';
+      $('modalCustomVoiceType').value = $('customVoiceType')?.value || voiceTypeEl?.value || '';
+      $('modalStyleInfluence').value = styleInfluenceEl?.value || 70;
+      $('modalVoiceIntensity').value = voiceIntensityEl?.value || 70;
+      $('modalPrompt').value = promptEl?.value || '';
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => $('modalCustomStyle').focus(), 30);
+    }
+
+    function applyEditorModal() {
+      const modal = $('editorModal');
+      if (!modal) return;
+      if (modal.dataset.mode === 'lyrics') {
+        lyricsEl.value = $('editorText').value;
+        updateAutoDuration();
+        showToast('歌词已保存。');
+      }
+      if (modal.dataset.mode === 'settings') {
+        if ($('customStyle')) $('customStyle').value = $('modalCustomStyle').value.trim();
+        if ($('customUsecase')) $('customUsecase').value = $('modalCustomUsecase').value.trim();
+        if ($('customLanguage')) $('customLanguage').value = $('modalCustomLanguage').value.trim();
+        if ($('customVoiceType')) $('customVoiceType').value = $('modalCustomVoiceType').value.trim();
+        if (styleInfluenceEl) {
+          styleInfluenceEl.value = $('modalStyleInfluence').value;
+          styleInfluenceEl.dispatchEvent(new Event('input'));
+        }
+        if (voiceIntensityEl) {
+          voiceIntensityEl.value = $('modalVoiceIntensity').value;
+          voiceIntensityEl.dispatchEvent(new Event('input'));
+        }
+        if (promptEl) promptEl.value = $('modalPrompt').value;
+        updateAutoDuration();
+        showToast('生成设置已保存。');
+      }
+      closeEditorModal();
+    }
+
+    function clearCoverSample() {
+      const input = $('coverAudio');
+      if (input) input.value = '';
+      state.sampleDuration = 0;
+      updateAutoDuration();
+      if ($('coverFileName')) $('coverFileName').textContent = '不上传也可以直接创作';
+      showToast('参考素材已删除。');
+    }
+
+    function clearToolMaterial() {
+      const input = $('toolFile');
+      if (input) input.value = '';
+      if ($('toolFileName')) $('toolFileName').textContent = '未上传素材';
+      if ($('toolResult')) {
+        $('toolResult').classList.add('empty');
+        $('toolResult').textContent = '还没有输出。先在上方输入素材/要求，然后点击一个功能按钮。生成出的音频会出现在右侧“工作区作品”，可以直接播放和下载。';
+      }
+      showToast('增强工具素材已删除。');
+    }
+
+    function renameTrack(trackId) {
+      const track = state.library.find(item => item.id === trackId);
+      if (!track) return;
+      const next = window.prompt('给这首歌改个名字', track.title || '');
+      if (!next || !next.trim()) return;
+      track.title = next.trim().slice(0, 60);
+      if (state.current && state.current.id === track.id) {
+        $('trackTitle').textContent = track.title;
+        drawCover(track.seed, track.title);
+      }
+      renderQueue();
+      renderLibrary();
+      showToast('作品名称已更新。');
     }
 
     function warnIfOpenedAsFile() {
@@ -4271,12 +4581,13 @@
         <div class="item track-row ${state.current && state.current.id === track.id ? 'active' : ''}">
           <div class="thumb" style="background:${track.thumb}"></div>
           <div>
-            <b>${escapeHtml(track.title)}</b>
+            <div class="track-title-line"><b>${escapeHtml(track.title)}</b></div>
             <span>${escapeHtml(track.style)} · ${escapeHtml(track.voiceType)} · ${escapeHtml(track.mood)} · ${track.duration}s · ${escapeHtml(track.createdAt)}</span>
           </div>
           <div class="item-actions">
-            <button class="icon-btn" title="播放" data-play="${track.id}">▶</button>
-            <button class="icon-btn" title="下载" data-download="${track.id}">↧</button>
+            <button class="icon-btn" title="播放" data-play="${track.id}">播放</button>
+            <button class="icon-btn" title="下载" data-download="${track.id}">下载</button>
+            <button class="icon-btn" title="改名" data-rename="${track.id}">改名</button>
           </div>
         </div>
       `);
@@ -4290,29 +4601,36 @@
         const track = state.library.find(x => x.id === btn.dataset.download);
         if (track) downloadTrack(track);
       }));
+      document.querySelectorAll('#queue [data-rename]').forEach(btn => btn.addEventListener('click', () => {
+        renameTrack(btn.dataset.rename);
+      }));
     }
 
     function renderLibrary() {
       $('libraryList').innerHTML = state.library.length ? state.library.map(track => `
-        <div class="item">
+        <div class="item track-row">
           <div class="thumb" style="background:${track.thumb}"></div>
           <div>
-            <b>${track.title}</b>
-            <span>${track.style} · ${track.voiceType} · ${track.mood} · ${track.duration}s · ${track.createdAt}</span>
+            <div class="track-title-line"><b>${escapeHtml(track.title)}</b></div>
+            <span>${escapeHtml(track.style)} · ${escapeHtml(track.voiceType)} · ${escapeHtml(track.mood)} · ${track.duration}s · ${escapeHtml(track.createdAt)}</span>
           </div>
           <div class="item-actions">
-            <button class="icon-btn" title="播放" data-play="${track.id}">▶</button>
-            <button class="icon-btn" title="下载" data-download="${track.id}">↓</button>
+            <button class="icon-btn" title="播放" data-play="${track.id}">播放</button>
+            <button class="icon-btn" title="下载" data-download="${track.id}">下载</button>
+            <button class="icon-btn" title="改名" data-rename="${track.id}">改名</button>
           </div>
         </div>
       `).join('') : '<div class="empty">作品库还空着。生成完成后会自动保存两个版本。</div>';
-      document.querySelectorAll('[data-play]').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('#libraryList [data-play]').forEach(btn => btn.addEventListener('click', () => {
         const track = state.library.find(x => x.id === btn.dataset.play);
         if (track) { setCurrent(track); playCurrent(); }
       }));
-      document.querySelectorAll('[data-download]').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('#libraryList [data-download]').forEach(btn => btn.addEventListener('click', () => {
         const track = state.library.find(x => x.id === btn.dataset.download);
         if (track) downloadTrack(track);
+      }));
+      document.querySelectorAll('#libraryList [data-rename]').forEach(btn => btn.addEventListener('click', () => {
+        renameTrack(btn.dataset.rename);
       }));
     }
 
@@ -5225,6 +5543,9 @@
     const shareHelperBtn = $('shareHelperBtn');
     const coverPickBtn = $('coverPickBtn');
     const coverAudio = $('coverAudio');
+    const clearCoverBtn = $('clearCoverBtn');
+    const expandLyricsBtn = $('expandLyricsBtn');
+    const expandSettingsBtn = $('expandSettingsBtn');
     const coverGenerateBtn = $('coverGenerateBtn');
     const coverUsePromptBtn = $('coverUsePromptBtn');
     const coverSimilarity = $('coverSimilarity');
@@ -5238,6 +5559,15 @@
     if (storyToPostBtn) storyToPostBtn.addEventListener('click', publishStoryToCommunity);
     if (shareHelperBtn) shareHelperBtn.addEventListener('click', shareHelperToCommunity);
     if (coverPickBtn && coverAudio) coverPickBtn.addEventListener('click', () => coverAudio.click());
+    if (clearCoverBtn) clearCoverBtn.addEventListener('click', clearCoverSample);
+    if (expandLyricsBtn) expandLyricsBtn.addEventListener('click', openLyricsEditor);
+    if (expandSettingsBtn) expandSettingsBtn.addEventListener('click', openSettingsEditor);
+    if ($('editorCloseBtn')) $('editorCloseBtn').addEventListener('click', closeEditorModal);
+    if ($('editorCancelBtn')) $('editorCancelBtn').addEventListener('click', closeEditorModal);
+    if ($('editorApplyBtn')) $('editorApplyBtn').addEventListener('click', applyEditorModal);
+    if ($('editorModal')) $('editorModal').addEventListener('click', event => {
+      if (event.target === $('editorModal')) closeEditorModal();
+    });
     if (coverAudio) coverAudio.addEventListener('change', () => {
       const file = coverAudio.files && coverAudio.files[0];
       if (file && !/\.(mp3|m4a|wav)$/i.test(file.name)) {
@@ -5294,8 +5624,11 @@
     });
     if (mvGenerateBtn) mvGenerateBtn.addEventListener('click', generateMvIdea);
     if (mvToCommunityBtn) mvToCommunityBtn.addEventListener('click', publishMvPreviewToCommunity);
+    if ($('toolPickBtn') && $('toolFile')) $('toolPickBtn').addEventListener('click', () => $('toolFile').click());
+    if ($('toolClearBtn')) $('toolClearBtn').addEventListener('click', clearToolMaterial);
     if ($('toolFile')) $('toolFile').addEventListener('change', () => {
       const file = $('toolFile').files && $('toolFile').files[0];
+      if ($('toolFileName')) $('toolFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '未上传素材';
       if ($('toolResult')) {
         $('toolResult').classList.remove('empty');
         $('toolResult').textContent = file
