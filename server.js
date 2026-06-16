@@ -1475,6 +1475,16 @@ async function callMurekaTool(action, body, file) {
 async function callMurekaWithReference(payload, sampleFile) {
   if (payload.vocals === false) return callMurekaInstrumental(payload);
   if (!sampleFile) return callMureka(payload);
+  const sampleName = String(sampleFile.filename || payload.sampleName || 'uploaded reference');
+  if (!/\.(mp3|m4a)$/i.test(sampleName)) {
+    return callMureka({
+      ...payload,
+      prompt: [
+        String(payload.prompt || ''),
+        `The user uploaded a reference audio file named "${sampleName}". Use it only as a text-level creative reference from the filename and user direction. Do not upload or copy the original audio. Create a new song that follows the requested style, lyrics, language, and vocal type.`
+      ].filter(Boolean).join(' ')
+    });
+  }
   const uploaded = await uploadMurekaFile(sampleFile, 'remix');
   const lyrics = normalizeLyrics(payload);
   const prompt = [

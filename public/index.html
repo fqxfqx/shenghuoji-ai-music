@@ -4600,33 +4600,11 @@
     }
 
     async function compressReferenceAudio(file) {
-      if (!file || file.size <= 30 * 1024 * 1024) return file;
+      if (!file) return file;
       if (!/\.(mp3|m4a|wav)$/i.test(file.name)) return file;
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return file;
-      const originalMb = (file.size / 1024 / 1024).toFixed(1);
-      showToast(`参考音频约 ${originalMb}MB，正在自动压缩成可上传采样...`);
-      const arrayBuffer = await file.arrayBuffer();
-      const audioContext = new AudioContextClass();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-      if (audioContext.close) audioContext.close();
-      const sampleRate = 22050;
-      const seconds = Math.min(90, audioBuffer.duration || 90);
-      const total = Math.max(1, Math.floor(seconds * sampleRate));
-      const output = new Float32Array(total);
-      for (let i = 0; i < total; i += 1) {
-        const sourceIndex = Math.min(audioBuffer.length - 1, Math.floor(i * audioBuffer.sampleRate / sampleRate));
-        let sum = 0;
-        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
-          sum += audioBuffer.getChannelData(channel)[sourceIndex] || 0;
-        }
-        output[i] = sum / Math.max(1, audioBuffer.numberOfChannels);
-      }
-      const blob = encodeWav(output, sampleRate);
-      const base = file.name.replace(/\.[^.]+$/, '').slice(0, 48) || 'reference';
-      const compressed = new File([blob], `${base}_reference.wav`, { type: 'audio/wav' });
-      showToast(`已自动压缩参考音频：${originalMb}MB → ${(compressed.size / 1024 / 1024).toFixed(1)}MB。`);
-      return compressed;
+      if (/\.wav$/i.test(file.name)) return null;
+      if (file.size > 30 * 1024 * 1024) return null;
+      return file;
     }
 
     function titleFrom(config) {
@@ -5511,8 +5489,21 @@
 
       try {
         let requestOptions;
-        if (sampleFile) {
-          sampleFile = await compressReferenceAudio(sampleFile);
+      if (sampleFile) {
+        sampleFile = await compressReferenceAudio(sampleFile);
+        if (!sampleFile) {
+          const payload = {
+            ...config,
+            prompt: `${config.prompt}。用户上传了 WAV 参考音频《${config.sampleName || '参考音频'}》，请根据文件名、歌词、风格、语言和声音选择生成相似氛围的新歌，不复制原曲旋律。`,
+            sampleCompressed: false,
+            sampleAsTextReference: true
+          };
+          requestOptions = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          };
+        } else {
           const form = new FormData();
           const payload = {
             ...config,
@@ -5522,7 +5513,8 @@
           form.append('payload', JSON.stringify(payload));
           form.append('sample', sampleFile);
           requestOptions = { method: 'POST', body: form };
-        } else {
+        }
+      } else {
           requestOptions = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -5876,7 +5868,9 @@
       }
       if (file && file.size > 30 * 1024 * 1024) {
         const sizeMb = (file.size / 1024 / 1024).toFixed(1);
-        showToast(`参考音频约 ${sizeMb}MB，生成时会自动压缩成可用采样。`);
+        showToast(`参考音频约 ${sizeMb}MB，系统会把它作为风格参考继续生成，不会直接上传原文件。`);
+      } else if (file && /\.wav$/i.test(file.name)) {
+        showToast('WAV 参考音频会作为风格参考继续生成；MP3/M4A 可作为真实音频参考。');
       }
       if ($('coverFileName')) $('coverFileName').textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : '不上传也可以直接创作';
       state.sampleDuration = 0;
