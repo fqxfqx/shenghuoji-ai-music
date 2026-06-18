@@ -1826,10 +1826,11 @@ async function handleApi(req, res, url) {
     const email = normalizeEmail(body.email);
     const purpose = String(body.purpose || 'register').trim();
     assertEmail(email);
-    if (!['register', 'reset'].includes(purpose)) throw new Error('验证码用途无效。');
+    if (!['register', 'reset', 'login'].includes(purpose)) throw new Error('验证码用途无效。');
     const exists = !!(await findUserByEmail(email));
     if (purpose === 'register' && exists) throw new Error('该邮箱已注册，请直接登录。');
     if (purpose === 'reset' && !exists) throw new Error('该邮箱还没有注册。');
+    if (purpose === 'login' && !exists) throw new Error('该邮箱还没有注册。');
     if (!emailProvider() && !canUseDevVerifyCode(req)) {
       throw new Error('邮箱验证码服务还没配置好。请先在 Railway 变量里配置阿里云邮件推送，配置完成后用户才能正常注册。');
     }
@@ -1932,8 +1933,14 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const email = normalizeEmail(body.email);
     const password = String(body.password || '');
+    const code = String(body.code || '').trim();
     const user = await findUserByEmail(email);
-    if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('邮箱或密码错误。');
+    if (!user) throw new Error('该邮箱还没有注册。');
+    if (code) {
+      await consumeVerifyCode(email, 'login', code);
+    } else if (!password || hashPassword(password, user.salt) !== user.passwordHash) {
+      throw new Error('邮箱验证码或密码错误。');
+    }
     await createSession(req, res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }
