@@ -1942,9 +1942,15 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const phone = normalizePhone(body.phone);
     const password = String(body.password || '');
+    const code = String(body.code || '').trim();
     assertPhone(phone);
     const user = await findUserByPhone(phone);
-    if (!user || hashPassword(password, user.salt) !== user.passwordHash) throw new Error('手机号或密码错误。');
+    if (!user) throw new Error('该手机号还没有注册。');
+    if (code) {
+      await consumeVerifyCode(phone, 'sms-login', code);
+    } else if (!password || hashPassword(password, user.salt) !== user.passwordHash) {
+      throw new Error('手机号验证码或密码错误。');
+    }
     await createSession(req, res, user.id);
     return sendJson(res, 200, { user: publicUser(user) });
   }

@@ -4089,10 +4089,12 @@
         const isReset = mode === 'reset';
         const isCodeMode = isRegister || isReset;
         const isPhone = state.authMethod === 'phone';
+        const needsPhoneCode = isPhone && (isRegister || mode === 'login');
+        const needsPassword = !isPhone || isRegister || isReset;
         const codeButtonText = state.authCodeCooldown > 0 ? `${state.authCodeCooldown} 秒后重发` : '获取验证码';
         box.innerHTML = `
           <strong id="authTitle">${isReset ? '找回密码' : isRegister ? '注册账号' : '账号登录'}</strong>
-          <small id="authHint">${isPhone ? '手机号适合没有邮箱的用户，短信服务配置后可用。' : isReset ? '先收验证码，再设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分，作品会保存到账号。' : '登录后作品会保存到你的账号。'}</small>
+          <small id="authHint">${isPhone ? (isRegister ? '手机号注册后可用短信验证码登录。' : '输入手机号，获取短信验证码后即可登录。') : isReset ? '先收验证码，再设置新密码。' : isRegister ? '邮箱验证后赠送 40 积分，作品会保存到账号。' : '登录后作品会保存到你的账号。'}</small>
           <div class="auth-method-tabs">
             <button class="${!isPhone ? 'active' : ''}" type="button" data-auth-action="method-email">邮箱登录</button>
             <button class="${isPhone ? 'active' : ''}" type="button" data-auth-action="method-phone">手机登录</button>
@@ -4104,14 +4106,14 @@
           ${isPhone ? authSmsStatusHtml(isRegister) : authEmailStatusHtml(isCodeMode)}
           ${isRegister ? `<input id="authName" placeholder="昵称" value="${escapeHtml(state.authDraft.name)}">` : ''}
           ${isPhone ? `<input id="authPhone" inputmode="tel" placeholder="手机号" value="${escapeHtml(state.authDraft.phone)}">` : `<input id="authEmail" type="email" placeholder="邮箱" value="${escapeHtml(state.authDraft.email)}">`}
-          ${(!isPhone && isCodeMode) || (isPhone && isRegister) ? `
+          ${(!isPhone && isCodeMode) || needsPhoneCode ? `
             <div class="code-row">
               <input id="authCode" placeholder="${isPhone ? '短信验证码' : '邮箱验证码'}" value="${escapeHtml(state.authDraft.code)}">
-              <button class="btn" type="button" data-auth-action="${isPhone ? 'send-sms-register-code' : isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
+              <button class="btn" type="button" data-auth-action="${isPhone ? (isRegister ? 'send-sms-register-code' : 'send-sms-login-code') : isReset ? 'send-reset-code' : 'send-register-code'}" ${state.authCodeCooldown > 0 ? 'disabled' : ''}>${codeButtonText}</button>
             </div>
             <div class="auth-note" id="authCodeHint">${state.authCodeMessage || ''}</div>
           ` : ''}
-          <input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}" value="${escapeHtml(state.authDraft.password)}">
+          ${needsPassword ? `<input id="authPassword" type="password" placeholder="${isReset ? '新密码，至少 6 位' : '密码，至少 6 位'}" value="${escapeHtml(state.authDraft.password)}">` : ''}
           ${state.api.devLoginReady ? `
             <div class="code-row">
               <input id="devLoginCode" type="password" placeholder="开发者测试码" value="${escapeHtml(state.authDraft.devCode)}">
@@ -4239,7 +4241,7 @@
         const data = await apiFetch(endpoint, {
           method: 'POST',
           body: JSON.stringify(state.authMethod === 'phone'
-            ? { phone: payload.phone, password: payload.password }
+            ? { phone: payload.phone, code: payload.code, password: payload.password }
             : { email: payload.email, password: payload.password })
         });
         state.user = data.user;
@@ -4379,6 +4381,10 @@
         if (action === 'send-sms-register-code') {
           event.preventDefault();
           sendSmsCode('register');
+        }
+        if (action === 'send-sms-login-code') {
+          event.preventDefault();
+          sendSmsCode('login');
         }
         if (action === 'dev-login') {
           event.preventDefault();
