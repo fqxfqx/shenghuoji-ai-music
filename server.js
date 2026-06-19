@@ -798,13 +798,15 @@ function collectAudioUrlCandidates(value, candidates, keyPath = '') {
   if (!value) return;
   if (typeof value === 'string') {
     const looksLikeAudioUrl = /^https?:\/\/.*\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
-    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac)/i.test(keyPath);
+    const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac|url|download|stream|cdn|oss|file|source)/i.test(keyPath);
     const keyLooksImage = /(cover|image|artwork|poster|thumbnail|avatar)/i.test(keyPath);
     const valueLooksImage = /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(value);
-    if ((looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value))) && !keyLooksImage && !valueLooksImage) {
+    const valueLooksNonAudio = /\.(json|txt|html|xml|srt|lrc|png|jpe?g|webp|gif|mp4|mov)(\?.*)?$/i.test(value);
+    const hostedAsset = /^https?:\/\/.+/i.test(value) && /(audio|song|music|mureka|minimax|aliyun|oss|cdn|cos|s3|r2|cloudfront|download|file|media)/i.test(`${keyPath} ${value}`);
+    if ((looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value)) || hostedAsset) && !keyLooksImage && !valueLooksImage && !valueLooksNonAudio) {
       const negative = /(instrumental|accompaniment|backing|stem|drum|bass|other|separate|伴奏|分轨)/i.test(`${keyPath} ${value}`);
-      let score = looksLikeAudioUrl ? 20 : 8;
-      if (/(song|full|complete|mix|master|audio|url|歌曲|成品|完整)/i.test(keyPath)) score += 16;
+      let score = looksLikeAudioUrl ? 24 : 10;
+      if (/(song|full|complete|mix|master|audio|url|download|stream|cdn|歌曲|成品|完整)/i.test(keyPath)) score += 18;
       if (/(vocal|voice|sing|人声|演唱)/i.test(keyPath)) score += 8;
       if (negative) score -= 50;
       candidates.push({ url: value, score });
@@ -2075,6 +2077,10 @@ async function handleApi(req, res, url) {
       task.raw = providerRaw;
       task.status = pickStatus(providerRaw, task.status);
       task.audioUrls = findAudioUrls(providerRaw).slice(0, 1);
+      if (!task.audioUrls.length && /complete|success|done|finished/i.test(String(task.status))) {
+        task.status = 'failed';
+        task.error = '音乐任务已完成，但接口没有返回可播放音频链接，请稍后重试或切换标准模式。';
+      }
       await saveGeneratedSong(task);
       tasks.set(id, task);
     }

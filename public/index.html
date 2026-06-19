@@ -5583,8 +5583,8 @@
       let attempts = 0;
       const timer = setInterval(async () => {
         attempts += 1;
-        task.progress = Math.min(92, 15 + attempts * 6);
-        task.status = attempts < 4 ? '模型编曲中' : attempts < 10 ? '真人演唱合成中' : '等待音频导出';
+        task.progress = Math.min(96, 15 + attempts * 3);
+        task.status = attempts < 4 ? '模型编曲中' : attempts < 12 ? '真人演唱合成中' : attempts < 45 ? '等待音频导出' : '仍在导出，请稍候';
         renderQueue();
 
         try {
@@ -5613,10 +5613,10 @@
             showToast('真实模型歌曲已生成完成。');
           }
         } catch (error) {
-          if (attempts > 20) {
+          if (attempts > 75) {
             clearInterval(timer);
             task.status = '查询超时';
-            task.error = friendlyApiError(error.message || '真实 API 查询超时。');
+            task.error = friendlyApiError(error.message || '真实 API 查询超时。请稍后点作品库刷新，或重新生成一次。');
             renderQueue();
             showToast(task.error);
           }
