@@ -2859,6 +2859,17 @@
                 </div>
               </div>
 
+              <div class="field compact-field">
+                <label for="musicMode">生成质量</label>
+                <select id="musicMode">
+                  <option value="auto">自动选择：优先稳定效果</option>
+                  <option value="standard">标准模式：速度快，适合试玩</option>
+                  <option value="premium">高级模式：真人演唱更稳</option>
+                  <option value="reference">参考采样：适合翻唱/相似氛围</option>
+                </select>
+                <input class="custom-hint" id="musicModeHint" disabled value="自动会根据是否上传采样、是否真人演唱选择模型。">
+              </div>
+
               <div class="advanced-card">
                 <div class="section-kicker"><span>Voice</span><span>人声</span></div>
                 <div class="voice-segment" id="voiceQuick">
@@ -3599,6 +3610,7 @@
     const styleEl = $('style');
     const usecaseEl = $('usecase');
     const voiceTypeEl = $('voiceType');
+    const musicModeEl = $('musicMode');
     const voiceIntensityEl = $('voiceIntensity');
     const styleInfluenceEl = $('styleInfluence');
     const lyricsEl = $('lyrics');
@@ -4013,8 +4025,13 @@
     function renderApiStatus() {
       const textReady = !!state.api.textModelReady;
       const musicReady = !!state.api.ready;
+      const providers = state.api.musicProviders || {};
+      const musicProviderNames = [
+        providers.mureka ? 'Mureka' : '',
+        providers.minimax ? 'MiniMax' : ''
+      ].filter(Boolean);
       const textLabel = textReady ? '已连接：' + (state.api.textModelProvider || 'text') : '本地规则';
-      const musicLabel = musicReady ? '已连接：' + state.api.provider : '本地演示';
+      const musicLabel = musicReady ? '已连接：' + (musicProviderNames.join(' + ') || state.api.provider) : '本地演示';
       const textStatus = $('textApiStatus');
       const musicStatus = $('musicApiStatus');
       const coverStatus = $('coverApiStatus');
@@ -4037,6 +4054,16 @@
       }
       if ($('menuTextApi')) $('menuTextApi').textContent = textLabel;
       if ($('menuMusicApi')) $('menuMusicApi').textContent = musicLabel;
+      const modeHint = $('musicModeHint');
+      if (modeHint) {
+        modeHint.value = providers.mureka && providers.minimax
+          ? '双模型已接入：标准模式走低成本模型，高级/采样走高级模型。'
+          : providers.mureka
+            ? '当前已接入高级模型；标准模式会自动使用高级模型。'
+            : providers.minimax
+              ? '当前已接入标准模型；参考采样和纯音乐能力有限。'
+              : '未接入真实音乐模型，当前为演示模式。';
+      }
     }
 
     async function apiFetch(url, options = {}) {
@@ -5433,6 +5460,7 @@
         style: ($('customStyle') && $('customStyle').value.trim()) || styleEl.value,
         styleInfluence: styleInfluenceEl ? Number(styleInfluenceEl.value) : 70,
         usecase: ($('customUsecase') && $('customUsecase').value.trim()) || usecaseEl.value,
+        musicMode: musicModeEl ? musicModeEl.value : 'auto',
         language: ($('customLanguage') && $('customLanguage').value.trim()) || (songLanguageEl ? songLanguageEl.value : '中文'),
         voiceType: ($('customVoiceType') && $('customVoiceType').value.trim()) || voiceTypeEl.value,
         voiceIntensity: Number(voiceIntensityEl.value),

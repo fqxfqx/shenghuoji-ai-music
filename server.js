@@ -739,8 +739,28 @@ async function requireUser(req) {
 }
 
 function musicProvider() {
-  if (process.env.MINIMAX_API_KEY) return 'minimax';
   if (process.env.MUREKA_API_KEY) return 'mureka';
+  if (process.env.MINIMAX_API_KEY) return 'minimax';
+  return 'demo';
+}
+
+function musicProviderStatus() {
+  return {
+    mureka: !!process.env.MUREKA_API_KEY,
+    minimax: !!process.env.MINIMAX_API_KEY
+  };
+}
+
+function selectMusicProvider(body, sampleFile) {
+  const status = musicProviderStatus();
+  const mode = String(body.musicMode || 'auto').trim().toLowerCase();
+  const hasReference = !!sampleFile || !!body.sampleName || body.sampleAsTextReference;
+  if (mode === 'standard' && status.minimax && !hasReference && body.vocals !== false) return 'minimax';
+  if ((mode === 'premium' || mode === 'reference') && status.mureka) return 'mureka';
+  if (hasReference && status.mureka) return 'mureka';
+  if (body.vocals === false && status.mureka) return 'mureka';
+  if (status.mureka) return 'mureka';
+  if (status.minimax) return 'minimax';
   return 'demo';
 }
 
@@ -1695,14 +1715,29 @@ async function prepareGenerationPayload(body) {
 
 async function submitGenerationTask(task, body, sampleFile) {
   try {
-    const provider = task.provider;
     const preparedBody = await prepareGenerationPayload(body);
     task.payload = preparedBody;
-    const raw = provider === 'minimax' ? await callMiniMax(preparedBody) : await callMurekaWithReference(preparedBody, sampleFile);
+    let provider = task.provider;
+    let raw;
+    try {
+      raw = provider === 'minimax' ? await callMiniMax(preparedBody) : await callMurekaWithReference(preparedBody, sampleFile);
+    } catch (primaryError) {
+      const canFallbackToMiniMax = provider === 'mureka'
+        && process.env.MINIMAX_API_KEY
+        && !sampleFile
+        && !preparedBody.sampleName
+        && preparedBody.vocals !== false;
+      if (!canFallbackToMiniMax) throw primaryError;
+      provider = 'minimax';
+      task.provider = provider;
+      preparedBody._fallbackFrom = 'mureka';
+      preparedBody._fallbackReason = primaryError.message || 'Mureka failed';
+      raw = await callMiniMax(preparedBody);
+    }
     const audioUrls = findAudioUrls(raw).slice(0, 1);
     task.raw = raw;
     task.providerTaskId = pickProviderTaskId(raw, task.id);
-    task.queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
+    task.queryKind = provider === 'mureka' && preparedBody.vocals === false ? 'instrumental' : 'song';
     task.status = audioUrls.length ? 'completed' : pickStatus(raw, 'processing');
     task.audioUrls = audioUrls;
     task.error = null;
@@ -1719,12 +1754,14 @@ async function submitGenerationTask(task, body, sampleFile) {
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/config') {
     const provider = musicProvider();
+    const musicProviders = musicProviderStatus();
     const databaseConnected = await initDb();
     const textProvider = textModelProvider();
     const mailProvider = emailProvider();
     return sendJson(res, 200, {
       provider,
       ready: provider !== 'demo',
+      musicProviders,
       databaseReady: databaseConnected,
       databaseProvider: databaseConnected ? 'postgresql' : 'json-file',
       textModelReady: !!textProvider,
@@ -2005,7 +2042,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/generate') {
     const user = await requireUser(req);
     const { body, sampleFile } = await readApiPayload(req);
-    const provider = musicProvider();
+    const provider = selectMusicProvider(body, sampleFile);
     if (provider === 'demo') throw new Error('No music API key configured.');
     const id = crypto.randomUUID();
     const queryKind = provider === 'mureka' && body.vocals === false ? 'instrumental' : 'song';
