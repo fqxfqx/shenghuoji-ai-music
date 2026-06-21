@@ -6,9 +6,11 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
+const GENERATED_DIR = path.join(PUBLIC_DIR, 'generated');
 const PORT = Number(process.env.PORT || 3000);
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(GENERATED_DIR, { recursive: true });
 
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SONGS_FILE = path.join(DATA_DIR, 'songs.json');
@@ -799,14 +801,15 @@ function collectAudioUrlCandidates(value, candidates, keyPath = '') {
   if (!value) return;
   if (typeof value === 'string') {
     const looksLikeAudioUrl = /^https?:\/\/.*\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
+    const looksLikeLocalAudio = /^\/generated\/.+\.(mp3|wav|m4a|aac|ogg|flac)(\?.*)?$/i.test(value);
     const keyLooksAudio = /(audio|song|music|track|vocal|mp3|wav|m4a|aac|flac|url|download|stream|cdn|oss|file|source)/i.test(keyPath);
     const keyLooksImage = /(cover|image|artwork|poster|thumbnail|avatar)/i.test(keyPath);
     const valueLooksImage = /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(value);
     const valueLooksNonAudio = /\.(json|txt|html|xml|srt|lrc|png|jpe?g|webp|gif|mp4|mov)(\?.*)?$/i.test(value);
     const hostedAsset = /^https?:\/\/.+/i.test(value) && /(audio|song|music|mureka|minimax|aliyun|oss|cdn|cos|s3|r2|cloudfront|download|file|media)/i.test(`${keyPath} ${value}`);
-    if ((looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value)) || hostedAsset) && !keyLooksImage && !valueLooksImage && !valueLooksNonAudio) {
+    if ((looksLikeLocalAudio || looksLikeAudioUrl || (keyLooksAudio && /^https?:\/\//i.test(value)) || hostedAsset) && !keyLooksImage && !valueLooksImage && !valueLooksNonAudio) {
       const negative = /(instrumental|accompaniment|backing|stem|drum|bass|other|separate|伴奏|分轨)/i.test(`${keyPath} ${value}`);
-      let score = looksLikeAudioUrl ? 24 : 10;
+      let score = looksLikeLocalAudio ? 40 : looksLikeAudioUrl ? 24 : 10;
       if (/(song|full|complete|mix|master|audio|url|download|stream|cdn|歌曲|成品|完整)/i.test(keyPath)) score += 18;
       if (/(vocal|voice|sing|人声|演唱)/i.test(keyPath)) score += 8;
       if (negative) score -= 50;
@@ -821,6 +824,47 @@ function collectAudioUrlCandidates(value, candidates, keyPath = '') {
   if (typeof value === 'object') {
     for (const [key, item] of Object.entries(value)) collectAudioUrlCandidates(item, candidates, keyPath ? `${keyPath}.${key}` : key);
   }
+}
+
+function findHexAudio(value, keyPath = '') {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const compact = value.trim();
+    const keyLooksAudio = /(audio|song|music|track|mp3|sound)/i.test(keyPath);
+    if (keyLooksAudio && compact.length > 2000 && compact.length % 2 === 0 && /^[0-9a-f]+$/i.test(compact)) {
+      return compact;
+    }
+    return null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findHexAudio(item, keyPath);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) {
+      const found = findHexAudio(item, keyPath ? `${keyPath}.${key}` : key);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function attachMiniMaxLocalAudio(data) {
+  const hexAudio = findHexAudio(data);
+  if (!hexAudio) return data;
+  const bytes = Buffer.from(hexAudio, 'hex');
+  if (bytes.length < 1024) return data;
+  const filename = `minimax-${Date.now()}-${crypto.randomUUID()}.mp3`;
+  fs.writeFileSync(path.join(GENERATED_DIR, filename), bytes);
+  const localUrl = `/generated/${filename}`;
+  return {
+    ...data,
+    local_audio_url: localUrl,
+    audio_url: localUrl
+  };
 }
 
 function pickProviderTaskId(raw, fallback) {
@@ -1337,13 +1381,12 @@ async function callMiniMax(payload) {
       model,
       prompt: `${payload.style}, ${payload.mood}, ${payload.usecase}, ${payload.voiceType} singing vocal. User direction: ${payload.prompt}`,
       lyrics,
-      audio_setting: { sample_rate: 44100, bitrate: 256000, format: 'mp3' },
-      output_format: 'url'
+      audio_setting: { sample_rate: 44100, bitrate: 256000, format: 'mp3' }
     })
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || data.message || 'MiniMax request failed');
-  return data;
+  return attachMiniMaxLocalAudio(data);
 }
 
 async function callMureka(payload, options = {}) {
