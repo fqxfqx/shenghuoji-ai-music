@@ -2862,12 +2862,12 @@
               <div class="field compact-field">
                 <label for="musicMode">生成质量</label>
                 <select id="musicMode">
-                  <option value="auto">自动选择：优先稳定效果</option>
-                  <option value="standard">标准模式：速度快，适合试玩</option>
+                  <option value="standard" selected>标准模式：速度快，适合普通写歌</option>
+                  <option value="auto">自动选择：普通写歌优先快速</option>
                   <option value="premium">高级模式：真人演唱更稳</option>
                   <option value="reference">参考采样：适合翻唱/相似氛围</option>
                 </select>
-                <input class="custom-hint" id="musicModeHint" disabled value="自动会根据是否上传采样、是否真人演唱选择模型。">
+                <input class="custom-hint" id="musicModeHint" disabled value="标准模式会优先用快速模型；高级和参考采样会更慢。">
               </div>
 
               <div class="advanced-card">

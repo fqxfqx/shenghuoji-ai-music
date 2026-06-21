@@ -759,6 +759,7 @@ function selectMusicProvider(body, sampleFile) {
   if ((mode === 'premium' || mode === 'reference') && status.mureka) return 'mureka';
   if (hasReference && status.mureka) return 'mureka';
   if (body.vocals === false && status.mureka) return 'mureka';
+  if (mode === 'auto' && status.minimax && body.vocals !== false) return 'minimax';
   if (status.mureka) return 'mureka';
   if (status.minimax) return 'minimax';
   return 'demo';
