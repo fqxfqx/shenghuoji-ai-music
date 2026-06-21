@@ -2966,6 +2966,7 @@
               <h3>工作区作品</h3>
               <div class="result-toolbar">
                 <span class="subhead" id="queueCount">0 个任务 · 0 首作品</span>
+                <button class="btn" id="clearFailedTasksBtn" type="button">清除失败</button>
                 <button class="btn" type="button">最新</button>
                 <button class="btn" type="button">列表</button>
               </div>
@@ -4710,9 +4711,9 @@
           <div>
             <b>${escapeHtml(task.title)}</b>
             <span>${escapeHtml(task.status)} · ${task.progress}% · ${escapeHtml(providerLabel(task.provider))} · ${escapeHtml(task.style)} / ${escapeHtml(task.mood)}</span>
-            ${task.error ? `<small class="error-text">${escapeHtml(task.error)}</small>` : ''}
+            ${task.error ? `<small class="error-text">${escapeHtml(friendlyTaskError(task.error))}</small>` : ''}
           </div>
-          <div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>
+          ${task.error ? `<button class="icon-btn" title="删除失败任务" data-clear-task="${task.id}">删除</button>` : `<div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>`}
         </div>
       `);
       const trackRows = tracks.map(track => `
@@ -4731,6 +4732,10 @@
       `);
       $('queueCount').textContent = `${state.queue.length} 个任务 · ${tracks.length} 首作品`;
       $('queue').innerHTML = pendingRows.concat(trackRows).join('') || '<div class="empty">还没有作品。填写左侧内容后点击开始创作，生成完成会直接出现在这里并进入底部播放器。</div>';
+      document.querySelectorAll('#queue [data-clear-task]').forEach(btn => btn.addEventListener('click', () => {
+        state.queue = state.queue.filter(x => x.id !== btn.dataset.clearTask);
+        renderQueue();
+      }));
       document.querySelectorAll('#queue [data-play]').forEach(btn => btn.addEventListener('click', () => {
         const track = state.library.find(x => x.id === btn.dataset.play);
         if (track) { setCurrent(track); playCurrent(); }
@@ -4748,6 +4753,21 @@
       if (provider === 'minimax') return 'MiniMax 快速';
       if (provider === 'mureka') return 'Mureka 高级';
       return provider || '自动模型';
+    }
+
+    function friendlyTaskError(error) {
+      const text = String(error || '');
+      if (/URL 输出|URL output|没有返回可播放音频链接|without audio/i.test(text)) {
+        return '快速模型没有返回可播放音频。请重新生成一次；如果连续出现，先切到高级模式。';
+      }
+      return friendlyApiError(text);
+    }
+
+    function clearFailedTasks() {
+      const before = state.queue.length;
+      state.queue = state.queue.filter(task => !task.error && !/失败|未生成|failed|error/i.test(String(task.status || '')));
+      renderQueue();
+      showToast(before === state.queue.length ? '当前没有失败任务。' : '已清除失败任务。');
     }
 
     function renderLibrary() {
@@ -5897,6 +5917,7 @@
     if (shareHelperBtn) shareHelperBtn.addEventListener('click', shareHelperToCommunity);
     if (coverPickBtn && coverAudio) coverPickBtn.addEventListener('click', () => coverAudio.click());
     if (clearCoverBtn) clearCoverBtn.addEventListener('click', clearCoverSample);
+    if ($('clearFailedTasksBtn')) $('clearFailedTasksBtn').addEventListener('click', clearFailedTasks);
     if (expandLyricsBtn) expandLyricsBtn.addEventListener('click', openLyricsEditor);
     if (expandSettingsBtn) expandSettingsBtn.addEventListener('click', openSettingsEditor);
     if ($('editorCloseBtn')) $('editorCloseBtn').addEventListener('click', closeEditorModal);
