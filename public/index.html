@@ -4709,7 +4709,7 @@
           <div class="thumb"></div>
           <div>
             <b>${escapeHtml(task.title)}</b>
-            <span>${escapeHtml(task.status)} · ${task.progress}% · ${escapeHtml(task.style)} / ${escapeHtml(task.mood)}</span>
+            <span>${escapeHtml(task.status)} · ${task.progress}% · ${escapeHtml(providerLabel(task.provider))} · ${escapeHtml(task.style)} / ${escapeHtml(task.mood)}</span>
             ${task.error ? `<small class="error-text">${escapeHtml(task.error)}</small>` : ''}
           </div>
           <div class="progress" style="width:92px"><i style="width:${task.progress}%"></i></div>
@@ -4742,6 +4742,12 @@
       document.querySelectorAll('#queue [data-rename]').forEach(btn => btn.addEventListener('click', () => {
         renameTrack(btn.dataset.rename);
       }));
+    }
+
+    function providerLabel(provider) {
+      if (provider === 'minimax') return 'MiniMax 快速';
+      if (provider === 'mureka') return 'Mureka 高级';
+      return provider || '自动模型';
     }
 
     function renderLibrary() {
@@ -5564,7 +5570,8 @@
         const data = await readJsonResponse(response, '提交生成失败');
         if (!response.ok) throw new Error(data.error || 'API 提交失败');
         task.providerTaskId = data.id;
-        task.status = '模型生成中';
+        task.provider = data.provider || task.provider;
+        task.status = task.provider === 'minimax' ? 'MiniMax 快速生成中' : 'Mureka 排队生成中';
         task.progress = 15;
         renderQueue();
         pollRealTask(task);
@@ -5584,13 +5591,16 @@
       const timer = setInterval(async () => {
         attempts += 1;
         task.progress = Math.min(96, 15 + attempts * 3);
-        task.status = attempts < 4 ? '模型编曲中' : attempts < 12 ? '真人演唱合成中' : attempts < 45 ? '等待音频导出' : '仍在导出，请稍候';
+        task.status = task.provider === 'minimax'
+          ? (attempts < 3 ? 'MiniMax 写歌中' : '等待快速模型返回音频')
+          : (attempts < 4 ? '模型编曲中' : attempts < 12 ? '真人演唱合成中' : attempts < 45 ? '等待音频导出' : '仍在导出，请稍候');
         renderQueue();
 
         try {
           const response = await fetch('/api/tasks/' + encodeURIComponent(task.providerTaskId));
           const data = await readJsonResponse(response, '查询生成进度失败');
           if (!response.ok) throw new Error(data.error || '任务查询失败');
+          task.provider = data.provider || task.provider;
           if (data.error || /fail|error|invalid|denied/i.test(String(data.status || ''))) {
             clearInterval(timer);
             task.status = 'API 失败，未生成';

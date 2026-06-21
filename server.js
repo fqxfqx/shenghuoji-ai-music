@@ -1744,6 +1744,10 @@ async function submitGenerationTask(task, body, sampleFile) {
     task.status = audioUrls.length ? 'completed' : pickStatus(raw, 'processing');
     task.audioUrls = audioUrls;
     task.error = null;
+    if (provider === 'minimax' && !audioUrls.length) {
+      task.status = 'failed';
+      task.error = 'MiniMax 已返回结果，但没有返回可播放音频链接。请检查 MiniMax 套餐/模型是否支持 music-2.6 URL 输出。';
+    }
     await saveGeneratedSong(task);
   } catch (error) {
     task.status = 'failed';
