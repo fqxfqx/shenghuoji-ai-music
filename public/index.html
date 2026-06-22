@@ -2862,12 +2862,12 @@
               <div class="field compact-field">
                 <label for="musicMode">生成质量</label>
                 <select id="musicMode">
-                  <option value="standard" selected>标准模式：速度快，适合普通写歌</option>
-                  <option value="auto">自动选择：普通写歌优先快速</option>
-                  <option value="premium">高级模式：真人演唱更稳</option>
+                  <option value="standard" selected>高清成歌：默认发行级质量</option>
+                  <option value="premium">发行母带：真人演唱更稳</option>
                   <option value="reference">参考采样：适合翻唱/相似氛围</option>
+                  <option value="draft">快速草稿：只适合试听灵感</option>
                 </select>
-                <input class="custom-hint" id="musicModeHint" disabled value="标准模式会优先用快速模型；高级和参考采样会更慢。">
+                <input class="custom-hint" id="musicModeHint" disabled value="高清成歌会优先使用高级模型；快速草稿只用于试听，不建议发行。">
               </div>
 
               <div class="advanced-card">
@@ -4058,11 +4058,11 @@
       const modeHint = $('musicModeHint');
       if (modeHint) {
         modeHint.value = providers.mureka && providers.minimax
-          ? '双模型已接入：标准模式走低成本模型，高级/采样走高级模型。'
+          ? '双模型已接入：高清成歌默认走高级模型；快速草稿才走低成本模型。'
           : providers.mureka
-            ? '当前已接入高级模型；标准模式会自动使用高级模型。'
+            ? '当前已接入高级模型；高清成歌会用于正式作品。'
             : providers.minimax
-              ? '当前已接入标准模型；参考采样和纯音乐能力有限。'
+              ? '当前只有草稿模型；不建议作为发行成品。'
               : '未接入真实音乐模型，当前为演示模式。';
       }
     }
@@ -5591,7 +5591,7 @@
         if (!response.ok) throw new Error(data.error || 'API 提交失败');
         task.providerTaskId = data.id;
         task.provider = data.provider || task.provider;
-        task.status = task.provider === 'minimax' ? 'MiniMax 快速生成中' : 'Mureka 排队生成中';
+        task.status = task.provider === 'minimax' ? '快速草稿生成中' : '高清成歌生成中';
         task.progress = 15;
         renderQueue();
         pollRealTask(task);
@@ -5612,8 +5612,8 @@
         attempts += 1;
         task.progress = Math.min(96, 15 + attempts * 3);
         task.status = task.provider === 'minimax'
-          ? (attempts < 3 ? 'MiniMax 写歌中' : '等待快速模型返回音频')
-          : (attempts < 4 ? '模型编曲中' : attempts < 12 ? '真人演唱合成中' : attempts < 45 ? '等待音频导出' : '仍在导出，请稍候');
+          ? (attempts < 3 ? '快速草稿写歌中' : '等待快速模型返回音频')
+          : (attempts < 4 ? '高清编曲中' : attempts < 12 ? '真人演唱与混音中' : attempts < 45 ? '高清音频导出中' : '发行级音频仍在导出，请稍候');
         renderQueue();
 
         try {

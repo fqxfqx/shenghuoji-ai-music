@@ -757,11 +757,11 @@ function selectMusicProvider(body, sampleFile) {
   const status = musicProviderStatus();
   const mode = String(body.musicMode || 'auto').trim().toLowerCase();
   const hasReference = !!sampleFile || !!body.sampleName || body.sampleAsTextReference;
-  if (mode === 'standard' && status.minimax && !hasReference && body.vocals !== false) return 'minimax';
+  if (mode === 'draft' && status.minimax && !hasReference && body.vocals !== false) return 'minimax';
+  if ((mode === 'standard' || mode === 'auto') && status.mureka) return 'mureka';
   if ((mode === 'premium' || mode === 'reference') && status.mureka) return 'mureka';
   if (hasReference && status.mureka) return 'mureka';
   if (body.vocals === false && status.mureka) return 'mureka';
-  if (mode === 'auto' && status.minimax && body.vocals !== false) return 'minimax';
   if (status.mureka) return 'mureka';
   if (status.minimax) return 'minimax';
   return 'demo';
@@ -1107,10 +1107,19 @@ function buildMurekaPrompt(payload) {
   const durationSource = payload.durationMode === 'sample'
     ? `match the uploaded reference audio length, about ${targetDuration} seconds`
     : `arrange the full song around the lyric length, about ${targetDuration} seconds`;
+  const releaseQuality = [
+    'release-ready production quality',
+    'clean commercial mix and mastering',
+    'clear lead vocal placed forward in the mix',
+    'balanced bass, drums, instruments, and vocal',
+    'avoid low bitrate artifacts, clipping, distortion, muddy reverb, noisy vocal, and demo-like rough mix',
+    'make the final output sound like a finished streaming-platform song'
+  ].join(', ');
   if (payload.vocals === false) {
     return [
       `Primary genre and arrangement: ${stylePrompt}`,
       `Mood: ${moodPrompt}`,
+      releaseQuality,
       'instrumental music only, no vocals, no singing, no spoken voice',
       'full instrumental track with clear intro, verse-like development, hook section, and ending',
       durationSource,
@@ -1129,6 +1138,7 @@ function buildMurekaPrompt(payload) {
     `Vocal requirement: ${voicePrompt}`,
     language.songLine,
     'full song, verse and chorus, radio-ready mix',
+    releaseQuality,
     durationSource,
     `style influence ${styleInfluence} percent`,
     `language: ${language.label}`,
